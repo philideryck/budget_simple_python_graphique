@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionnaire de Budget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card.revenue {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .stat-card.expense {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .stat-card.balance {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+        }
+        
+        .stat-card.balance.negative {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+        }
+        
+        .stat-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            margin-bottom: -2px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-revenue {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-revenue:hover {
+            background: #218838;
+        }
+        
+        .btn-expense {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-expense:hover {
+            background: #c82333;
+        }
+        
+        .btn-delete {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #5a6268;
+        }
+        
+        .transaction {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .transaction.revenue {
+            background: #f0f9ff;
+            border-color: #90ee90;
+        }
+        
+        .transaction.expense {
+            background: #fff5f5;
+            border-color: #ffb6b6;
+        }
+        
+        .transaction-info {
+            flex: 1;
+        }
+        
+        .transaction-desc {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .transaction-date {
+            font-size: 12px;
+            color: #999;
+            margin-top: 3px;
+        }
+        
+        .transaction-amount {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .transaction-amount.revenue {
+            color: #28a745;
+        }
+        
+        .transaction-amount.expense {
+            color: #dc3545;
+        }
+        
+        .search-box {
+            margin-bottom: 15px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-controls input {
+            flex: 1;
+        }
+        
+        .filter-controls select {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>💰 Gestionnaire de Budget</h1>
+            
+            <div class="stats">
+                <div class="stat-card revenue">
+                    <div class="stat-title">Total Revenus</div>
+                    <div class="stat-value" id="total-revenue">+0.00€</div>
+                </div>
+                <div class="stat-card expense">
+                    <div class="stat-title">Total Dépenses</div>
+                    <div class="stat-value" id="total-expense">-0.00€</div>
+                </div>
+                <div class="stat-card balance" id="balance-card">
+                    <div class="stat-title">Solde Actuel</div>
+                    <div class="stat-value" id="total-balance">0.00€</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('add')">Ajouter Transaction</button>
+                <button class="tab" onclick="switchTab('history')">Historique</button>
+            </div>
+            
+            <div id="add-tab" class="tab-content active">
+                <div class="form-group">
+                    <label for="amount">Montant (€)</label>
+                    <input type="number" id="amount" placeholder="0.00" step="0.01" min="0">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input type="text" id="description" placeholder="Ex: Salaire, Courses, Restaurant...">
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-revenue" onclick="addTransaction('revenue')">
+                        💵 Ajouter Revenu
+                    </button>
+                    <button class="btn-expense" onclick="addTransaction('expense')">
+                        💸 Ajouter Dépense
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-delete" onclick="deleteLastTransaction()">
+                        🗑️ Supprimer la dernière transaction
+                    </button>
+                </div>
+            </div>
+            
+            <div id="history-tab" class="tab-content">
+                <div class="filter-controls">
+                    <input type="text" id="search" placeholder="🔍 Rechercher..." onkeyup="filterTransactions()">
+                    <select id="limit" onchange="filterTransactions()">
+                        <option value="5">5 dernières</option>
+                        <option value="10" selected>10 dernières</option>
+                        <option value="20">20 dernières</option>
+                        <option value="50">50 dernières</option>
+                        <option value="9999">Toutes</option>
+                    </select>
+                </div>
+                
+                <div id="transactions-list">
+                    <div class="empty-state">Aucune transaction enregistrée</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Variables globales
+        let transactions = [];
+        
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTransactions();
+            updateStats();
+            displayTransactions();
+        });
+        
+        // Charger les transactions
+        function loadTransactions() {
+            const saved = localStorage.getItem('budget-transactions');
+            if (saved) {
+                try {
+                    transactions = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Erreur de chargement:', e);
+                    transactions = [];
+                }
+            }
+        }
+        
+        // Sauvegarder les transactions
+        function saveTransactions() {
+            localStorage.setItem('budget-transactions', JSON.stringify(transactions));
+        }
+        
+        // Changer d'onglet
+        function switchTab(tab) {
+            // Mettre à jour les onglets
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            if (tab === 'add') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('add-tab').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('history-tab').classList.add('active');
+                displayTransactions();
+            }
+        }
+        
+        // Ajouter une transaction
+        function addTransaction(type) {
+            const amountInput = document.getElementById('amount');
+            const descriptionInput = document.getElementById('description');
+            
+            const amount = parseFloat(amountInput.value);
+            const description = descriptionInput.value.trim();
+            
+            if (!amount || amount <= 0) {
+                alert('❌ Le montant doit être positif!');
+                return;
+            }
+            
+            if (!description) {
+                alert('❌ Veuillez entrer une description!');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                amount: amount,
+                description: description,
+                type: type
+            };
+            
+            transactions.push(transaction);
+            saveTransactions();
+            updateStats();
+            
+            // Réinitialiser les champs
+            amountInput.value = '';
+            descriptionInput.value = '';
+            
+            alert(`✅ ${type === 'revenue' ? 'Revenu' : 'Dépense'} ajouté(e) avec succès!`);
+        }
+        
+        // Supprimer la dernière transaction
+        function deleteLastTransaction() {
+            if (transactions.length === 0) {
+                alert('❌ Aucune transaction à supprimer.');
+                return;
+            }
+            
+            if (confirm('⚠️ Êtes-vous sûr de vouloir supprimer la dernière transaction?')) {
+                const deleted = transactions.pop();
+                saveTransactions();
+                updateStats();
+                displayTransactions();
+                alert(`✅ Transaction supprimée: ${deleted.description} (${deleted.amount}€)`);
+            }
+        }
+        
+        // Mettre à jour les statistiques
+        function updateStats() {
+            let totalRevenue = 0;
+            let totalExpense = 0;
+            
+            transactions.forEach(t => {
+                if (t.type === 'revenue') {
+                    totalRevenue += t.amount;
+                } else {
+                    totalExpense += t.amount;
+                }
+            });
+            
+            const balance = totalRevenue - totalExpense;
+            
+            document.getElementById('total-revenue').textContent = `+${totalRevenue.toFixed(2)}€`;
+            document.getElementById('total-expense').textContent = `-${totalExpense.toFixed(2)}€`;
+            document.getElementById('total-balance').textContent = `${balance >= 0 ? '+' : ''}${balance.toFixed(2)}€`;
+            
+            // Changer la couleur du solde
+            const balanceCard = document.getElementById('balance-card');
+            if (balance < 0) {
+                balanceCard.classList.add('negative');
+            } else {
+                balanceCard.classList.remove('negative');
+            }
+        }
+        
+        // Afficher les transactions
+        function displayTransactions() {
+            filterTransactions();
+        }
+        
+        // Filtrer les transactions
+        function filterTransactions() {
+            const searchTerm = document.getElementById('search')?.value.toLowerCase() || '';
+            const limit = parseInt(document.getElementById('limit')?.value || 10);
+            
+            let filtered = [...transactions];
+            
+            // Appliquer le filtre de recherche
+            if (searchTerm) {
+                filtered = filtered.filter(t => 
+                    t.description.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Trier par date (plus récent en premier)
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Limiter le nombre
+            filtered = filtered.slice(0, limit);
+            
+            // Afficher
+            const listElement = document.getElementById('transactions-list');
+            
+            if (filtered.length === 0) {
+                listElement.innerHTML = '<div class="empty-state">Aucune transaction trouvée</div>';
+                return;
+            }
+            
+            listElement.innerHTML = filtered.map(t => {
+                const date = new Date(t.date).toLocaleDateString('fr-FR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                return `
+                    <div class="transaction ${t.type}">
+                        <div class="transaction-info">
+                            <div class="transaction-desc">${t.description}</div>
+                            <div class="transaction-date">📅 ${date}</div>
+                        </div>
+                        <div class="transaction-amount ${t.type}">
+                            ${t.type === 'revenue' ? '+' : '-'}${t.amount.toFixed(2)}€
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Gestionnaire de Budget Complet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            color: #1976d2;
+        }
+        
+        .solde {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        
+        .solde.positif { color: #2e7d32; }
+        .solde.negatif { color: #d32f2f; }
+        
+        .nav-tabs {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        
+        .nav-tabs button {
+            background: none;
+            border: none;
+            padding: 16px 15px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            flex: 1;
+        }
+        
+        .nav-tabs button:hover {
+            background: #f5f5f5;
+            color: #1976d2;
+        }
+        
+        .nav-tabs button.active {
+            color: #1976d2;
+            background: #e3f2fd;
+            border-bottom: 3px solid #1976d2;
+        }
+        
+        .nav-container {
+            display: flex;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-revenu {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-revenu:hover {
+            background: #45a049;
+        }
+        
+        .btn-depense {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-depense:hover {
+            background: #da190b;
+        }
+        
+        .btn-primary {
+            background: #1976d2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1565c0;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid;
+        }
+        
+        .stat-card.revenus {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        
+        .stat-card.depenses {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        
+        .stat-card.solde {
+            background: #e3f2fd;
+            border-color: #1976d2;
+        }
+        
+        .stat-card h3 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        .stat-card .montant {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .transaction-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .transaction-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .transaction-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .transaction-dot.revenu { background: #4caf50; }
+        .transaction-dot.depense { background: #f44336; }
+        
+        .transaction-montant {
+            font-weight: bold;
+        }
+        
+        .transaction-montant.revenu { color: #4caf50; }
+        .transaction-montant.depense { color: #f44336; }
+        
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 24px;
+            display: block;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        
+        .alert {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            border: 1px solid #1976d2;
+            color: #1976d2;
+        }
+        
+        .alert-warning {
+            background: #fff8e1;
+            border: 1px solid #f57c00;
+            color: #f57c00;
+        }
+        
+        .alert-danger {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #f44336;
+        }
+        
+        .alert-success {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #4caf50;
+        }
+        
+        /* Styles spécifiques aux budgets */
+        .budget-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-left: 6px solid #1976d2;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .budget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .budget-title {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #1976d2;
+        }
+        
+        .budget-montant {
+            font-weight: bold;
+            color: #1976d2;
+            font-size: 1.1rem;
+        }
+        
+        .budget-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .budget-progress {
+            width: 100%;
+            height: 16px;
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .budget-progress-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 8px;
+        }
+        
+        .budget-progress-bar.normal { background: linear-gradient(90deg, #4caf50, #66bb6a); }
+        .budget-progress-bar.warning { background: linear-gradient(90deg, #ff9800, #ffb74d); }
+        .budget-progress-bar.danger { background: linear-gradient(90deg, #f44336, #e57373); }
+        
+        .budget-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 12px;
+        }
+        
+        .budget-form {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .budget-form h3 {
+            margin-bottom: 20px;
+            color: #1976d2;
+            font-size: 1.3rem;
+        }
+        
+        .budget-form-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 16px;
+            align-items: end;
+        }
+        
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+        
+        /* Styles pour l'import */
+        .import-section {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        
+        .import-section h3 {
+            color: #e65100;
+            margin-bottom: 16px;
+        }
+        
+        .file-input-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .file-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .preview-table {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .preview-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .preview-table th, .preview-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        
+        .preview-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+        }
+        
+        .mapping-section {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+        
+        /* Modal pour édition */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .intro-budgets {
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c8);
+            border: 2px solid #4caf50;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        .intro-budgets h3 {
+            color: #2e7d32;
+            margin-bottom: 12px;
+        }
+        
+        .intro-budgets p {
+            color: #388e3c;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💰 Gestionnaire de Budget Complet</h1>
+            <div id="solde-display" class="solde positif">0,00€</div>
+        </div>
+        
+        <!-- Navigation avec 6 onglets -->
+        <div class="nav-tabs">
+            <div class="nav-container">
+                <button class="nav-btn active" data-tab="dashboard">📊 Tableau de bord</button>
+                <button class="nav-btn" data-tab="budgets">🎯 Budgets</button>
+                <button class="nav-btn" data-tab="import">📥 Import</button>
+                <button class="nav-btn" data-tab="add">➕ Ajouter</button>
+                <button class="nav-btn" data-tab="history">📋 Historique</button>
+                <button class="nav-btn" data-tab="search">🔍 Rechercher</button>
+            </div>
+        </div>
+        
+        <!-- Contenu -->
+        <div class="content">
+            <!-- Tableau de bord -->
+            <div id="dashboard" class="tab-content active">
+                <h2>📊 Résumé Financier</h2>
+                <div class="alert alert-info">
+                    🎉 Bienvenue ! Définissez vos budgets, importez vos relevés bancaires, et suivez vos finances !
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card revenus">
+                        <h3>💰 Total Revenus</h3>
+                        <div id="total-revenus" class="montant">+0,00€</div>
+                    </div>
+                    <div class="stat-card depenses">
+                        <h3>💸 Total Dépenses</h3>
+                        <div id="total-depenses" class="montant">-0,00€</div>
+                    </div>
+                    <div class="stat-card solde">
+                        <h3>💼 Solde</h3>
+                        <div id="solde-card" class="montant">0,00€</div>
+                    </div>
+                </div>
+                
+                <!-- Alertes budgets -->
+                <div id="budget-alerts"></div>
+                
+                <div id="recent-transactions">
+                    <h3>Dernières Transactions</h3>
+                    <div id="recent-list" class="empty-state">
+                        <p>Aucune transaction enregistrée.</p>
+                        <button onclick="showTab('import')">📥 Importer mes relevés bancaires</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ONGLET BUDGETS -->
+            <div id="budgets" class="tab-content">
+                <h2>🎯 Gestion des Budgets Mensuels</h2>
+                
+                <!-- Message d'introduction -->
+                <div class="intro-budgets">
+                    <h3>🎯 Contrôlez vos dépenses !</h3>
+                    <p>Définissez et modifiez vos budgets mensuels par catégorie.</p>
+                </div>
+                
+                <!-- Formulaire d'ajout de budget -->
+                <div class="budget-form">
+                    <h3>➕ Créer un Nouveau Budget</h3>
+                    <div class="budget-form-grid">
+                        <div class="form-group">
+                            <label for="budget-categorie">📂 Catégorie</label>
+                            <input type="text" id="budget-categorie" placeholder="Ex: Alimentation, Transport, Loisirs...">
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-montant">💰 Budget mensuel (€)</label>
+                            <input type="number" id="budget-montant" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <button class="btn btn-primary" onclick="ajouterBudget()">
+                                ✅ Créer Budget
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Liste des budgets -->
+                <div id="budgets-list"></div>
+            </div>
+            
+            <!-- ONGLET IMPORT -->
+            <div id="import" class="tab-content">
+                <h2>📥 Importer des Relevés Bancaires</h2>
+                
+                <div class="import-section">
+                    <h3>📁 Sélectionner un fichier CSV</h3>
+                    <p style="margin-bottom: 16px; color: #d84315;">
+                        Exportez vos transactions depuis votre banque en ligne (format CSV) et importez-les ici.
+                    </p>
+                    
+                    <div class="file-input-container">
+                        <input type="file" id="csv-file" class="file-input" accept=".csv" onchange="previewCSV()">
+                        <button class="btn btn-primary" onclick="document.getElementById('csv-file').click()">
+                            📁 Choisir un fichier
+                        </button>
+                    </div>
+                    
+                    <div id="csv-preview"></div>
+                    <div id="csv-mapping"></div>
+                    
+                    <div id="import-actions" style="display: none; margin-top: 16px;">
+                        <button class="btn btn-success" onclick="importerCSV()">
+                            ✅ Importer les transactions
+                        </button>
+                        <button class="btn btn-warning" onclick="annulerImport()">
+                            ❌ Annuler
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    💡 <strong>Formats supportés :</strong> Les fichiers CSV de la plupart des banques françaises (Crédit Agricole, BNP, Société Générale, etc.)
+                </div>
+            </div>
+            
+            <!-- Ajouter transaction -->
+            <div id="add" class="tab-content">
+                <h2>➕ Ajouter une Transaction Manuelle</h2>
+                
+                <div style="max-width: 500px; margin: 0 auto;">
+                    <div class="form-group">
+                        <label for="montant">💰 Montant (€)</label>
+                        <input type="number" id="montant" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">📝 Description</label>
+                        <input type="text" id="description" placeholder="Description de la transaction">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categorie">📂 Catégorie (pour les dépenses)</label>
+                        <select id="categorie">
+                            <option value="">-- Sélectionner une catégorie --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-revenu" onclick="ajouterTransaction('revenu')">
+                            💰 Revenu
+                        </button>
+                        <button class="btn btn-depense" onclick="ajouterTransaction('depense')">
+                            💸 Dépense
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-warning" style="margin-top: 20px;">
+                        💡 <strong>Astuce :</strong> Pour importer en masse, utilisez l'onglet "📥 Import" !
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Historique -->
+            <div id="history" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h2>📋 Historique des Transactions</h2>
+                    <button id="btn-supprimer" class="btn btn-danger" onclick="supprimerDerniere()" style="display: none;">
+                        🗑️ Supprimer dernière
+                    </button>
+                </div>
+                <div id="history-list"></div>
+            </div>
+            
+            <!-- Recherche -->
+            <div id="search" class="tab-content">
+                <h2>🔍 Rechercher des Transactions</h2>
+                <input type="text" id="search-input" class="search-input" placeholder="Rechercher par description ou catégorie..." onkeyup="rechercherTransactions()">
+                <div id="search-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour éditer budget -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Modifier le Budget</h3>
+                <button class="modal-close" onclick="fermerModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="edit-categorie">📂 Catégorie</label>
+                <input type="text" id="edit-categorie" readonly style="background: #f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label for="edit-montant">💰 Nouveau montant mensuel (€)</label>
+                <input type="number" id="edit-montant" step="0.01" min="0">
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="sauvegarderBudget()">✅ Sauvegarder</button>
+                <button class="btn btn-danger" onclick="fermerModal()">❌ Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let transactions = [];
+        let budgets = [];
+        let csvData = [];
+        let editingBudgetId = null;
+        
+        // Catégories prédéfinies
+        const categoriesDefaut = [
+            'Alimentation', 'Transport', 'Logement', 'Loisirs', 'Santé', 
+            'Vêtements', 'Éducation', 'Cadeaux', 'Économies', 'Autres'
+        ];
+        
+        // Chargement des données
+        function chargerDonnees() {
+            const savedTransactions = localStorage.getItem('budgetTransactions');
+            const savedBudgets = localStorage.getItem('budgetBudgets');
+            
+            if (savedTransactions) {
+                transactions = JSON.parse(savedTransactions);
+            }
+            
+            if (savedBudgets) {
+                budgets = JSON.parse(savedBudgets);
+            }
+            
+            mettreAJourAffichage();
+            mettreAJourCategories();
+        }
+        
+        // Sauvegarde des données
+        function sauvegarderDonnees() {
+            localStorage.setItem('budgetTransactions', JSON.stringify(transactions));
+            localStorage.setItem('budgetBudgets', JSON.stringify(budgets));
+        }
+        
+        // Calculer les dépenses par catégorie ce mois
+        function calculerDepensesCategorie(categorie) {
+            const maintenant = new Date();
+            const debutMois = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+            
+            return transactions
+                .filter(t => 
+                    t.type === 'depense' && 
+                    t.categorie === categorie && 
+                    new Date(t.date) >= debutMois
+                )
+                .reduce((total, t) => total + t.montant, 0);
+        }
+        
+        // Ajouter un budget
+        function ajouterBudget() {
+            const categorie = document.getElementById('budget-categorie').value.trim();
+            const montant = parseFloat(document.getElementById('budget-montant').value);
+            
+            if (!categorie) {
+                alert('❌ La catégorie est obligatoire!');
+                return;
+            }
+            
+            if (isNaN(montant) || montant <= 0) {
+                alert('❌ Le montant doit être positif!');
+                return;
+            }
+            
+            // Vérifier si la catégorie existe déjà
+            const existant = budgets.find(b => b.categorie.toLowerCase() === categorie.toLowerCase());
+            if (existant) {
+                alert(`❌ Un budget existe déjà pour "${categorie}". Utilisez le bouton "Modifier" pour le changer.`);
+                return;
+            }
+            
+            budgets.push({
+                id: Date.now(),
+                categorie: categorie,
+                montant: montant
+            });
+            
+            // Réinitialiser le formulaire
+            document.getElementById('budget-categorie').value = '';
+            document.getElementById('budget-montant').value = '';
+            
+            sauvegarderDonnees();
+            mettreAJourAffichage();
+            mettreAJourCategories();
+            
+            alert(`✅ Budget créé pour "${categorie}": ${montant.toFixed(2)}€/mois`);
+        }
+        
+        // Ouvrir modal d'édition
+        function modifierBudget(id) {
+            const budget = budgets.find(b => b.id === id);
+            if (budget) {
+                editingBudgetId = id;
+                document.getElementById('edit-categorie').value = budget.categorie;
+                document.getElementById('edit-montant').value = budget.montant;
+                document.getElementById('edit-modal').classList.add('active');
+            }
+        }
+        
+        // Sauvegarder les modifications de budget
+        function sauvegarderBudget() {
+            const nouveauMontant = parseFloat(document.getElementById('edit-montant').value);
+            
+            if (isNaN(nouveauMontant) || nouveauMontant <= 0) {
+                alert('❌ Le montant doit être positif!');
+                return;
+            }
+            
+            const budget = budgets.find(b => b.id === editingBudgetId);
+            if (budget) {
+                budget.montant = nouveauMontant;
+                sauvegarderDonnees();
+                mettreAJourAffichage();
+                fermerModal();
+                alert(`✅ Budget "${budget.categorie}" mis à jour: ${nouveauMontant.toFixed(2)}€/mois`);
+            }
+        }
+        
+        // Fermer modal
+        function fermerModal() {
+            document.getElementById('edit-modal').classList.remove('active');
+            editingBudgetId = null;
+        }
+        
+        // Supprimer un budget
+        function supprimerBudget(id) {
+            const budget = budgets.find(b => b.id === id);
+            if (confirm(`Êtes-vous sûr de vouloir supprimer le budget "${budget.categorie}" ?`)) {
+                budgets = budgets.filter(b => b.id !== id);
+                sauvegarderDonnees();
+                mettreAJourAffichage();
+                mettreAJourCategories();
+                alert('✅ Budget supprimé!');
+            }
+        }
+        
+        // Preview CSV
+        function previewCSV() {
+            const fileInput = document.getElementById('csv-file');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csv = e.target.result;
+                const lignes = csv.split('\n').filter(ligne => ligne.trim());
+                
+                if (lignes.length < 2) {
+                    alert('❌ Le fichier CSV doit contenir au moins une ligne d\'en-tête et une ligne de données.');
+                    return;
+                }
+                
+                // Parser le CSV (simple)
+                csvData = lignes.map(ligne => {
+                    // Gérer les guillemets et virgules
+                    const colonnes = [];
+                    let colonneActuelle = '';
+                    let dansGuillemets = false;
+                    
+                    for (let i = 0; i < ligne.length; i++) {
+                        const char = ligne[i];
+                        if (char === '"') {
+                            dansGuillemets = !dansGuillemets;
+                        } else if (char === ',' && !dansGuillemets) {
+                            colonnes.push(colonneActuelle.trim());
+                            colonneActuelle = '';
+                        } else {
+                            colonneActuelle += char;
+                        }
+                    }
+                    colonnes.push(colonneActuelle.trim());
+                    return colonnes;
+                });
+                
+                afficherPreviewCSV();
+            };
+            reader.readAsText(file);
+        }
+        
+        // Afficher preview du CSV
+        function afficherPreviewCSV() {
+            if (csvData.length === 0) return;
+            
+            const headers = csvData[0];
+            const preview = csvData.slice(1, 6); // 5 premières lignes de données
+            
+            let html = `
+                <div class="preview-table">
+                    <h4>Aperçu du fichier (${csvData.length - 1} transactions)</h4>
+                    <table>
+                        <thead>
+                            <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                        </thead>
+                        <tbody>
+                            ${preview.map(ligne => 
+                                `<tr>${ligne.map(cell => `<td>${cell || ''}</td>`).join('')}</tr>`
+                            ).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('csv-preview').innerHTML = html;
+            afficherMappingCSV(headers);
+        }
+        
+        // Afficher interface de mapping
+        function afficherMappingCSV(headers) {
+            const html = `
+                <div class="mapping-section">
+                    <h4>🔗 Correspondance des colonnes</h4>
+                    <p style="margin-bottom: 16px; color: #666;">
+                        Associez les colonnes de votre fichier aux champs de l'application :
+                    </p>
+                    <div class="mapping-grid">
+                        <div class="form-group">
+                            <label>📅 Date</label>
+                            <select id="mapping-date">
+                                <option value="">-- Sélectionner --</option>
+                                ${headers.map((h, i) => `<option value="${i}">${h}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>📝 Description</label>
+                            <select id="mapping-description">
+                                <option value="">-- Sélectionner --</option>
+                                ${headers.map((h, i) => `<option value="${i}">${h}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>💰 Montant</label>
+                            <select id="mapping-montant">
+                                <option value="">-- Sélectionner --</option>
+                                ${headers.map((h, i) => `<option value="${i}">${h}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>📂 Catégorie par défaut pour les dépenses</label>
+                        <select id="mapping-categorie">
+                            ${categoriesDefaut.map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('csv-mapping').innerHTML = html;
+            document.getElementById('import-actions').style.display = 'block';
+            
+            // Auto-détection basique
+            autoDetecterColonnes(headers);
+        }
+        
+        // Auto-détection des colonnes
+        function autoDetecterColonnes(headers) {
+            headers.forEach((header, index) => {
+                const h = header.toLowerCase();
+                
+                // Date
+                if (h.includes('date') || h.includes('valeur')) {
+                    document.getElementById('mapping-date').value = index;
+                }
+                
+                // Description
+                if (h.includes('libelle') || h.includes('description') || h.includes('intitule')) {
+                    document.getElementById('mapping-description').value = index;
+                }
+                
+                // Montant
+                if (h.includes('montant') || h.includes('debit') || h.includes('credit') || h.includes('solde')) {
+                    document.getElementById('mapping-montant').value = index;
+                }
+            });
+        }
+        
+        // Importer le CSV
+        function importerCSV() {
+            const dateCol = document.getElementById('mapping-date').value;
+            const descCol = document.getElementById('mapping-description').value;
+            const montantCol = document.getElementById('mapping-montant').value;
+            const categorieDefaut = document.getElementById('mapping-categorie').value;
+            
+            if (!dateCol || !descCol || !montantCol) {
+                alert('❌ Veuillez sélectionner les colonnes Date, Description et Montant.');
+                return;
+            }
+            
+            let importees = 0;
+            let erreurs = 0;
+            
+            // Traiter chaque ligne (sauf header)
+            for (let i = 1; i < csvData.length; i++) {
+                const ligne = csvData[i];
+                
+                try {
+                    // Extraire les données
+                    let dateStr = ligne[dateCol];
+                    let description = ligne[descCol];
+                    let montantStr = ligne[montantCol];
+                    
+                    // Nettoyer et parser le montant
+                    montantStr = montantStr.replace(/[^\d,-]/g, '').replace(',', '.');
+                    let montant = parseFloat(montantStr);
+                    
+                    if (isNaN(montant)) {
+                        erreurs++;
+                        continue;
+                    }
+                    
+                    // Déterminer le type (revenu/dépense)
+                    const type = montant >= 0 ? 'revenu' : 'depense';
+                    montant = Math.abs(montant);
+                    
+                    // Parser la date
+                    let date;
+                    try {
+                        // Essayer plusieurs formats de date
+                        if (dateStr.includes('/')) {
+                            const parts = dateStr.split('/');
+                            date = new Date(parts[2], parts[1] - 1, parts[0]);
+                        } else if (dateStr.includes('-')) {
+                            date = new Date(dateStr);
+                        } else {
+                            date = new Date();
+                        }
+                    } catch (e) {
+                        date = new Date();
+                    }
+                    
+                    // Créer la transaction
+                    const transaction = {
+                        id: Date.now() + i,
+                        date: date.toISOString(),
+                        montant: montant,
+                        description: description.trim(),
+                        type: type,
+                        categorie: type === 'depense' ? categorieDefaut : null
+                    };
+                    
+                    transactions.unshift(transaction);
+                    importees++;
+                    
+                } catch (e) {
+                    erreurs++;
+                }
+            }
+            
+            sauvegarderDonnees();
+            mettreAJourAffichage();
+            annulerImport();
+            
+            alert(`✅ Import terminé !\n${importees} transactions importées\n${erreurs} erreurs`);
+        }
+        
+        // Annuler import
+        function annulerImport() {
+            document.getElementById('csv-file').value = '';
+            document.getElementById('csv-preview').innerHTML = '';
+            document.getElementById('csv-mapping').innerHTML = '';
+            document.getElementById('import-actions').style.display = 'none';
+            csvData = [];
+        }
+        
+        // Calculer le solde
+        function calculerSolde() {
+            return transactions.reduce((solde, t) => {
+                return t.type === 'revenu' ? solde + t.montant : solde - t.montant;
+            }, 0);
+        }
+        
+        // Calculer les totaux
+        function calculerTotaux() {
+            const revenus = transactions.filter(t => t.type === 'revenu').reduce((total, t) => total + t.montant, 0);
+            const depenses = transactions.filter(t => t.type === 'depense').reduce((total, t) => total + t.montant, 0);
+            return { revenus, depenses };
+        }
+        
+        // Ajouter une transaction
+        function ajouterTransaction(type) {
+            const montant = parseFloat(document.getElementById('montant').value);
+            const description = document.getElementById('description').value.trim();
+            const categorie = document.getElementById('categorie').value;
+            
+            if (isNaN(montant) || montant <= 0) {
+                alert('❌ Le montant doit être positif!');
+                return;
+            }
+            
+            if (!description) {
+                alert('❌ La description est obligatoire!');
+                return;
+            }
+            
+            if (type === 'depense' && !categorie) {
+                alert('❌ Veuillez sélectionner une catégorie pour cette dépense!');
+                return;
+            }
+            
+            const transaction = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                montant: montant,
+                description: description,
+                type: type,
+                categorie: type === 'depense' ? categorie : null
+            };
+            
+            transactions.unshift(transaction);
+            sauvegarderDonnees();
+            mettreAJourAffichage();
+            
+            // Réinitialiser le formulaire
+            document.getElementById('montant').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('categorie').value = '';
+            
+            // Message de confirmation
+            const message = type === 'revenu' ? 
+                `✅ Revenu ajouté: +${montant.toFixed(2)}€` : 
+                `✅ Dépense ajoutée: -${montant.toFixed(2)}€ (${categorie})`;
+            alert(message);
+        }
+        
+        // Supprimer la dernière transaction
+        function supprimerDerniere() {
+            if (transactions.length === 0) {
+                alert('❌ Aucune transaction à supprimer.');
+                return;
+            }
+            
+            if (confirm('Êtes-vous sûr de vouloir supprimer la dernière transaction?')) {
+                transactions.shift();
+                sauvegarderDonnees();
+                mettreAJourAffichage();
+                alert('✅ Transaction supprimée!');
+            }
+        }
+        
+        // Mettre à jour les catégories dans le select
+        function mettreAJourCategories() {
+            const select = document.getElementById('categorie');
+            const categoriesPersonnalisees = budgets.map(b => b.categorie);
+            const toutesCategories = [...new Set([...categoriesDefaut, ...categoriesPersonnalisees])];
+            
+            select.innerHTML = '<option value="">-- Sélectionner une catégorie --</option>';
+            toutesCategories.forEach(cat => {
+                select.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+        }
+        
+        // Mettre à jour l'affichage principal
+        function mettreAJourAffichage() {
+            const solde = calculerSolde();
+            const { revenus, depenses } = calculerTotaux();
+            
+            // Mettre à jour le solde principal
+            const soldeDisplay = document.getElementById('solde-display');
+            soldeDisplay.textContent = (solde >= 0 ? '+' : '') + solde.toFixed(2) + '€';
+            soldeDisplay.className = 'solde ' + (solde >= 0 ? 'positif' : 'negatif');
+            
+            // Mettre à jour les cartes de statistiques
+            document.getElementById('total-revenus').textContent = '+' + revenus.toFixed(2) + '€';
+            document.getElementById('total-depenses').textContent = '-' + depenses.toFixed(2) + '€';
+            document.getElementById('solde-card').textContent = (solde >= 0 ? '+' : '') + solde.toFixed(2) + '€';
+            
+            // Mettre à jour toutes les sections
+            mettreAJourRecentes();
+            mettreAJourHistorique();
+            mettreAJourBudgets();
+            mettreAJourAlertes();
+            
+            // Afficher/cacher le bouton de suppression
+            document.getElementById('btn-supprimer').style.display = transactions.length > 0 ? 'block' : 'none';
+        }
+        
+        // Mettre à jour les alertes de budget
+        function mettreAJourAlertes() {
+            const container = document.getElementById('budget-alerts');
+            let alertes = [];
+            
+            budgets.forEach(budget => {
+                const depense = calculerDepensesCategorie(budget.categorie);
+                const pourcentage = (depense / budget.montant) * 100;
+                
+                if (pourcentage >= 100) {
+                    alertes.push(`
+                        <div class="alert alert-danger">
+                            🚨 <strong>Budget dépassé !</strong> 
+                            Catégorie "${budget.categorie}": ${depense.toFixed(2)}€ / ${budget.montant.toFixed(2)}€ 
+                            (${pourcentage.toFixed(0)}%)
+                        </div>
+                    `);
+                } else if (pourcentage >= 80) {
+                    alertes.push(`
+                        <div class="alert alert-warning">
+                            ⚠️ <strong>Attention !</strong> 
+                            Catégorie "${budget.categorie}": ${depense.toFixed(2)}€ / ${budget.montant.toFixed(2)}€ 
+                            (${pourcentage.toFixed(0)}%)
+                        </div>
+                    `);
+                }
+            });
+            
+            container.innerHTML = alertes.join('');
+        }
+        
+        // Mettre à jour l'affichage des budgets
+        function mettreAJourBudgets() {
+            const container = document.getElementById('budgets-list');
+            
+            if (budgets.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>🎯 Aucun budget défini</h3>
+                        <p>Commencez par créer vos premiers budgets mensuels !</p>
+                        <p style="font-size: 0.9rem; margin-top: 8px; color: #999;">
+                            Exemples : Alimentation (400€), Transport (150€), Loisirs (200€)...
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = budgets.map(budget => {
+                const depense = calculerDepensesCategorie(budget.categorie);
+                const pourcentage = Math.min((depense / budget.montant) * 100, 100);
+                const reste = Math.max(budget.montant - depense, 0);
+                
+                let couleurBarre = 'normal';
+                let statut = '✅ Dans les limites';
+                if (pourcentage >= 100) {
+                    couleurBarre = 'danger';
+                    statut = '🚨 Budget dépassé !';
+                } else if (pourcentage >= 80) {
+                    couleurBarre = 'warning';
+                    statut = '⚠️ Attention aux dépenses';
+                }
+                
+                return `
+                    <div class="budget-item">
+                        <div class="budget-header">
+                            <div class="budget-title">📂 ${budget.categorie}</div>
+                            <div class="budget-montant">${budget.montant.toFixed(2)}€/mois</div>
+                            <div class="budget-actions">
+                                <button class="btn btn-warning btn-small" onclick="modifierBudget(${budget.id})">
+                                    ✏️ Modifier
+                                </button>
+                                <button class="btn btn-danger btn-small" onclick="supprimerBudget(${budget.id})">
+                                    🗑️ Supprimer
+                                </button>
+                            </div>
+                        </div>
+                        <div class="budget-progress">
+                            <div class="budget-progress-bar ${couleurBarre}" style="width: ${pourcentage}%"></div>
+                        </div>
+                        <div class="budget-stats">
+                            <span><strong>Dépensé:</strong> ${depense.toFixed(2)}€</span>
+                            <span><strong>Reste:</strong> ${reste.toFixed(2)}€</span>
+                            <span><strong>${pourcentage.toFixed(0)}%</strong></span>
+                        </div>
+                        <div style="margin-top: 8px; font-weight: bold; color: ${couleurBarre === 'danger' ? '#f44336' : couleurBarre === 'warning' ? '#f57c00' : '#4caf50'};">
+                            ${statut}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Mettre à jour les transactions récentes
+        function mettreAJourRecentes() {
+            const container = document.getElementById('recent-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>Aucune transaction enregistrée.</p>
+                        <button onclick="showTab('import')">📥 Importer mes relevés bancaires</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = transactions.slice(0, 5).map(t => `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-dot ${t.type}"></div>
+                        <div>
+                            <div>${t.description}</div>
+                            ${t.categorie ? `<small style="color: #666;">📂 ${t.categorie}</small>` : ''}
+                        </div>
+                    </div>
+                    <div>
+                        <small style="color: #666; margin-right: 12px;">${new Date(t.date).toLocaleDateString('fr-FR')}</small>
+                        <span class="transaction-montant ${t.type}">
+                            ${t.type === 'revenu' ? '+' : '-'}${t.montant.toFixed(2)}€
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Mettre à jour l'historique
+        function mettreAJourHistorique() {
+            const container = document.getElementById('history-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>Aucune transaction enregistrée.</p>
+                        <button onclick="showTab('import')">📥 Importer mes relevés bancaires</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = transactions.map(t => `
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-dot ${t.type}"></div>
+                        <div>
+                            <div>${t.description}</div>
+                            <small style="color: #666;">
+                                📅 ${new Date(t.date).toLocaleDateString('fr-FR')}
+                                ${t.categorie ? `• 📂 ${t.categorie}` : ''}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="transaction-montant ${t.type}">
+                        ${t.type === 'revenu' ? '+' : '-'}${t.montant.toFixed(2)}€
+                        <div style="font-size: 0.8em; margin-top: 4px;">
+                            ${t.type === 'revenu' ? '💰 Revenu' : '💸 Dépense'}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Rechercher des transactions
+        function rechercherTransactions() {
+            const terme = document.getElementById('search-input').value.toLowerCase();
+            const container = document.getElementById('search-results');
+            
+            if (!terme) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const resultats = transactions.filter(t => 
+                t.description.toLowerCase().includes(terme) ||
+                (t.categorie && t.categorie.toLowerCase().includes(terme))
+            );
+            
+            if (resultats.length === 0) {
+                container.innerHTML = `
+                    <p style="text-align: center; color: #666; padding: 40px;">
+                        Aucune transaction trouvée pour "${terme}"
+                    </p>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <p style="margin-bottom: 20px; color: #666;">
+                    Résultats pour "${terme}" (${resultats.length} trouvée(s))
+                </p>
+                ${resultats.map(t => `
+                    <div class="transaction-item">
+                        <div class="transaction-info">
+                            <div class="transaction-dot ${t.type}"></div>
+                            <div>
+                                <div>${t.description}</div>
+                                ${t.categorie ? `<small style="color: #666;">📂 ${t.categorie}</small>` : ''}
+                            </div>
+                        </div>
+                        <div>
+                            <small style="color: #666; margin-right: 12px;">${new Date(t.date).toLocaleDateString('fr-FR')}</small>
+                            <span class="transaction-montant ${t.type}">
+                                ${t.type === 'revenu' ? '+' : '-'}${t.montant.toFixed(2)}€
+                            </span>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        // Gestion des onglets
+        function showTab(tabName) {
+            // Cacher tous les onglets
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Désactiver tous les boutons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Activer l'onglet sélectionné
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        }
+        
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            chargerDonnees();
+            
+            // Gestion des clics sur les onglets
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    showTab(this.dataset.tab);
+                });
+            });
+            
+            // Fermer modal en cliquant à côté
+            document.getElementById('edit-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    fermerModal();
+                }
+            });
+            
+            // Raccourcis clavier
+            document.getElementById('description').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    ajouterTransaction('revenu');
+                }
+            });
+            
+            document.getElementById('budget-montant').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    ajouterBudget();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>💰 Gestionnaire de Budget — v08.1 (corrigé)</title>
+  <meta name="description" content="Gestionnaire de budget : import CSV (auto/manuel), exports CSV/JSON/XLSX, édition, tableaux triables, graphiques, et réinitialisation robuste.">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <style>
+    :root{
+      --primary:#1976d2; --primary-600:#1565c0; --green:#4caf50; --green-700:#2e7d32;
+      --red:#f44336; --orange:#ff9800; --bg:linear-gradient(135deg,#e3f2fd 0%,#bbdefb 100%);
+      --card:#fff; --muted:#666; --border:#e0e0e0; --shadow:0 6px 18px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);padding:24px;min-height:100vh}
+    .container{max-width:1200px;margin:0 auto}
+    .header{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:20px 24px;margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+    .header h1{font-size:1.6rem;color:var(--primary);display:flex;gap:.5rem;align-items:center}
+    .header-title{display:flex;flex-direction:column;gap:4px}
+    .header-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+    .period-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .period-controls input[type="month"]{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;font-size:.95rem}
+    .period-controls .btn{white-space:nowrap}
+    .btn.sm{padding:4px 10px;font-size:.85rem}
+    .solde{font-size:1.4rem;font-weight:800}
+    .solde.positif{color:var(--green-700,#2e7d32)} .solde.negatif{color:var(--red)}
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+    .tab-btn{background:var(--card);border:2px solid transparent;border-radius:10px;padding:10px 14px;cursor:pointer;color:#444;font-weight:600;box-shadow:var(--shadow);transition:.2s}
+    .tab-btn[aria-selected="true"]{border-color:var(--primary);background:#e3f2fd;color:var(--primary)}
+    .card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:20px}
+    .grid{display:grid;gap:16px}
+    .grid-3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .kpi{border-left:6px solid; padding:16px 16px 14px;border-radius:12px;border-color:var(--primary);background:#eef6ff}
+    .kpi.revenus{border-color:var(--green);background:#e8f5e8}
+    .kpi.depenses{border-color:var(--red);background:#ffebee}
+    .kpi h3{font-size:.95rem;margin:0 0 4px} .kpi .v{font-size:1.3rem;font-weight:800}
+    .muted{color:var(--muted)} .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;transition:.15s}
+    .btn.primary{background:var(--primary);color:#fff}.btn.primary:hover{background:var(--primary-600)}
+    .btn.green{background:var(--green);color:#fff}.btn.green:hover{background:#3e9c44}
+    .btn.red{background:var(--red);color:#fff}.btn.red:hover{filter:brightness(.95)}
+    .btn.orange{background:var(--orange);color:#fff}
+    .btn.ghost{background:#f5f7fb}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    label{font-weight:700;color:#333}
+    input,select,textarea{width:100%;padding:12px;border:2px solid #ddd;border-radius:10px;font-size:1rem;transition:.15s;background:#fff}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+    .two{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    @media (max-width:900px){.two{grid-template-columns:1fr}}
+    .list{display:flex;flex-direction:column;gap:10px}
+    .line{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:12px;align-items:center;border:1px solid var(--border);background:#fff;border-radius:12px;padding:12px}
+    .dot{width:10px;height:10px;border-radius:50%}.dot.revenu{background:var(--green)}.dot.depense{background:var(--red)}
+    .line .desc{font-weight:700}.line .date{font-size:.85rem;color:var(--muted)}
+    .amt{font-weight:800;text-align:right}.amt.revenu{color:var(--green)}.amt.depense{color:var(--red)}
+    .select-budget{min-width:210px}
+    .select-budget.non{border-color:var(--red);background:#fff5f5}.select-budget.ok{border-color:var(--green);background:#f7fff7}
+    .empty{text-align:center;color:var(--muted);padding:28px 8px}
+    .alert{padding:12px 14px;border-radius:10px}
+    .alert.red{background:#ffebee;border:1px solid var(--red);color:var(--red)}
+    .alert.orange{background:#fff8e1;border:1px solid #f57c00;color:#f57c00}
+    .alert.blue{background:#e3f2fd;border:1px solid var(--primary);color:var(--primary)}
+    .budget-item{background:#f8f9fb;border-left:6px solid var(--primary);padding:16px;border-radius:12px;display:grid;gap:10px}
+    .budget-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .progress{height:14px;background:#e0e0e0;border-radius:10px;overflow:hidden}
+    .bar{height:100%}
+    .bar.ok{background:linear-gradient(90deg,#4caf50,#66bb6a)}.bar.warn{background:linear-gradient(90deg,#ff9800,#ffb74d)}.bar.bad{background:linear-gradient(90deg,#f44336,#ef9a9a)}
+    .search{max-width:440px;margin:0 auto}
+    .file-drop{border:2px dashed var(--primary);border-radius:12px;padding:28px;text-align:center;background:#f8fbff}
+    .file-drop.drag{background:#e3f2fd;border-color:var(--primary-600)}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{font-size:.8rem;background:#eef2f7;border:1px solid #dde3ea;padding:6px 10px;border-radius:999px}
+    details>summary{cursor:pointer;user-select:none;font-weight:700;margin:-6px 0 8px}
+    .badge{font-size:.78rem;border-radius:8px;padding:4px 8px;background:#eef2f7;border:1px solid #dde3ea}
+    .badge.rec{background:#e8f5e8;border-color:#c8e6c9}
+    .right{justify-content:flex-end}
+
+    table{width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden}
+    th, td{padding:10px 12px; border-bottom:1px solid #eee; text-align:left; font-size:.95rem}
+    thead th{background:#f5f7fb; font-weight:800; cursor:pointer; user-select:none}
+    thead th.sort-asc::after{content:"▲"; float:right; font-size:.75rem}
+    thead th.sort-desc::after{content:"▼"; float:right; font-size:.75rem}
+    tbody tr:hover{background:#fafcff}
+    .table-controls{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px}
+    .pagination{display:flex; gap:6px; align-items:center}
+    .pagination button{padding:6px 10px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer}
+    .pagination .active{background:#e3f2fd; border-color:var(--primary); color:var(--primary); font-weight:800}
+    .mode-toggle{display:flex; gap:8px; align-items:center}
+    .analysis-panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
+    .panel{padding:14px;border-radius:14px}
+    .panel.full{margin-top:20px}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .list-compact .line{padding:6px 0}
+    .delta-positive{color:#2e7d32}
+    .delta-negative{color:#c62828}
+    .badge.delta-up{background:#e8f5e8;border-color:#c8e6c9;color:#2e7d32}
+    .badge.delta-down{background:#ffebee;border-color:#ffcdd2;color:#c62828}
+    .table-responsive{overflow-x:auto}
+    .stat-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.05)}
+    .stat-line:last-child{border-bottom:none}
+    .stat-line .label{font-weight:700}
+    .stat-line .value{font-weight:800}
+    .stat-line .share{font-size:.85rem;color:var(--muted)}
+    .delta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.05)}
+    .delta-row:last-child{border-bottom:none}
+    .delta-row .label{font-weight:700}
+    .delta-row .value{font-weight:800}
+    .delta-row .delta{display:flex;flex-direction:column;align-items:flex-end;font-weight:700;gap:2px}
+    .delta-row .delta .pct{font-size:.8rem;color:var(--muted);font-weight:600}
+    #analysis-budgets td:nth-child(2),
+    #analysis-budgets td:nth-child(3),
+    #analysis-budgets td:nth-child(4){text-align:right}
+    #analysis-budgets td:nth-child(5){font-weight:700}
+    .meta{font-size:.85rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header" role="banner">
+      <div class="header-title">
+        <h1>💰 Gestionnaire de Budget <span class="badge">v08.1</span></h1>
+        <p class="muted" id="period-label">Analyse du mois en cours</p>
+      </div>
+      <div class="header-right">
+        <div id="solde-display" class="solde positif">+0,00 €</div>
+        <div class="period-controls" role="group" aria-label="Choisir la période d'analyse">
+          <button class="btn ghost sm" id="period-prev" aria-label="Mois précédent">◀</button>
+          <input type="month" id="period-picker" aria-label="Sélection du mois">
+          <button class="btn ghost sm" id="period-next" aria-label="Mois suivant">▶</button>
+          <button class="btn ghost sm" id="period-current">Ce mois</button>
+        </div>
+      </div>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn" data-tab="dashboard" aria-selected="true">📊 Tableau de bord</button>
+      <button class="tab-btn" data-tab="budgets">🎯 Budgets</button>
+      <button class="tab-btn" data-tab="add">➕ Ajouter</button>
+      <button class="tab-btn" data-tab="history">📋 Historique</button>
+      <button class="tab-btn" data-tab="search">🔍 Rechercher</button>
+      <button class="tab-btn" data-tab="import">📥 Import</button>
+      <button class="tab-btn" data-tab="export">📤 Export</button>
+      <button class="tab-btn" data-tab="charts">📈 Graphiques</button>
+      <button class="tab-btn" data-tab="prefs">⚙️ Réglages</button>
+    </nav>
+
+    <section id="dashboard" class="card tab" role="tabpanel">
+      <div class="grid grid-3">
+        <div class="kpi revenus">
+          <h3>💰 Total Revenus</h3>
+          <div id="kpi-revenus" class="v">+0,00 €</div>
+          <div class="muted" id="kpi-revenus-nb">0 ligne</div>
+        </div>
+        <div class="kpi depenses">
+          <h3>💸 Total Dépenses</h3>
+          <div id="kpi-depenses" class="v">-0,00 €</div>
+          <div class="muted" id="kpi-depenses-nb">0 ligne</div>
+        </div>
+        <div class="kpi">
+          <h3>💼 Solde</h3>
+          <div id="kpi-solde" class="v">+0,00 €</div>
+          <div class="muted" id="kpi-period-label">Ce mois</div>
+        </div>
+      </div>
+      <div id="alerts" class="grid" style="margin-top:16px"></div>
+
+      <div class="analysis-panels">
+        <div class="card panel">
+          <div class="panel-header">
+            <h3>Catégories principales du mois</h3>
+            <span class="badge" id="analysis-top-total"></span>
+          </div>
+          <div id="analysis-top-categories" class="list"></div>
+          <div class="muted" id="analysis-top-empty" hidden>Aucune dépense ce mois-ci.</div>
+        </div>
+        <div class="card panel">
+          <div class="panel-header">
+            <h3>Variations vs mois précédent</h3>
+          </div>
+          <div id="analysis-deltas" class="list list-compact"></div>
+          <div class="muted" id="analysis-deltas-note"></div>
+        </div>
+      </div>
+
+      <div class="card panel full">
+        <div class="panel-header">
+          <h3>Budgets : prévu vs réalisé</h3>
+          <button class="btn ghost sm" id="analysis-budgets-export" disabled>Exporter (CSV)</button>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Budget</th>
+                <th>Prévu</th>
+                <th>Réalisé</th>
+                <th>Écart</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="analysis-budgets"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 style="margin:18px 0 8px">🎯 Dernières transactions — Affectation rapide</h3>
+      <div id="recent-list" class="list"></div>
+    </section>
+
+    <section id="budgets" class="card tab" hidden role="tabpanel">
+      <div class="alert blue">
+        Définissez vos budgets mensuels par catégorie. Les transactions du mois sélectionné alimentent la jauge automatiquement.
+        <button class="btn ghost sm" onclick="forceRefreshBudgets()" style="margin-left:10px">🔄 Actualiser</button>
+      </div>
+      <div class="two">
+        <div class="card">
+          <h3>➕ Nouveau budget</h3>
+          <div class="grid" style="grid-template-columns:1fr 160px auto;align-items:end;margin-top:8px">
+            <div>
+              <label for="budget-categorie">Catégorie</label>
+              <input id="budget-categorie" placeholder="Ex: Alimentation, Transport, Loisirs…">
+            </div>
+            <div>
+              <label for="budget-montant">Montant mensuel (€)</label>
+              <input id="budget-montant" type="number" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div><button class="btn primary" id="btn-add-budget">Créer le budget</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Outils de diagnostic</h3>
+          <div class="actions" style="margin-top:10px;flex-direction:column;align-items:stretch;gap:8px">
+            <button class="btn ghost" onclick="diagnosticBudgets()">🔍 Diagnostic complet</button>
+            <button class="btn orange" onclick="creerDonneesTest()">🧪 Créer données de test</button>
+            <button class="btn primary" onclick="forceRefreshBudgets()">🔄 Forcer actualisation</button>
+          </div>
+          <p class="muted" style="margin-top:8px;font-size:0.85rem">Le diagnostic affiche l'état complet dans la console (F12). Les données de test créent un exemple fonctionnel.</p>
+        </div>
+      </div>
+      <div id="budgets-list" class="grid" style="margin-top:16px"></div>
+    </section>
+
+    <section id="add" class="card tab" hidden role="tabpanel">
+      <h3>➕ Ajouter une transaction</h3>
+      <div class="two" style="margin-top:8px">
+        <div class="card">
+          <div class="grid" style="grid-template-columns: 140px 1fr">
+            <div>
+              <label for="montant">Montant (€)</label>
+              <input id="montant" type="number" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div>
+              <label for="description">Description</label>
+              <input id="description" placeholder="Ex: Courses, Salaire, Internet…">
+            </div>
+            <div style="grid-column:1/-1">
+              <label for="categorie">Budget (dépenses)</label>
+              <select id="categorie" class="select-budget"></select>
+            </div>
+          </div>
+          <div class="actions right" style="margin-top:10px">
+            <button class="btn green" id="btn-add-revenu">Ajouter revenu</button>
+            <button class="btn red" id="btn-add-depense">Ajouter dépense</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Astuce</h3>
+          <p class="muted">Les revenus n'ont pas de catégorie. Pour les dépenses, choisissez un budget ou laissez vide pour affecter plus tard.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="history" class="card tab" hidden role="tabpanel">
+      <div class="table-controls">
+        <div class="mode-toggle">
+          <label>Affichage :</label>
+          <select id="history-mode">
+            <option value="list">Liste</option>
+            <option value="table">Tableau</option>
+          </select>
+        </div>
+        <div class="mode-toggle">
+          <label>Période :</label>
+          <select id="history-scope">
+            <option value="selected">Mois analysé</option>
+            <option value="all">Toutes les transactions</option>
+          </select>
+        </div>
+        <div class="mode-toggle" style="flex:1; min-width:220px">
+          <input id="history-filter" placeholder="Filtrer (desc/catégorie)…" style="width:100%">
+        </div>
+        <div class="mode-toggle">
+          <label>Page :</label>
+          <select id="history-pagesize" style="width:auto">
+            <option>10</option><option>25</option><option>50</option><option>100</option>
+          </select>
+        </div>
+      </div>
+      <div id="history-list" class="list"></div>
+      <div id="history-table-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th data-key="date">Date</th>
+              <th data-key="description">Description</th>
+              <th data-key="type">Type</th>
+              <th data-key="montant">Montant</th>
+              <th data-key="categorie">Catégorie</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+        <div class="pagination" id="history-pagination" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section id="search" class="card tab" hidden role="tabpanel">
+      <h3>🔍 Rechercher & affecter</h3>
+      <input id="search-input" class="search" placeholder="Rechercher par description ou catégorie…" />
+      <div id="search-results" class="list" style="margin-top:14px"></div>
+    </section>
+
+    <section id="import" class="card tab" hidden role="tabpanel">
+      <h3>📥 Importer un CSV</h3>
+      <div class="file-drop" id="drop">
+        <p style="font-size:1.1rem;margin:0 0 6px">Cliquez pour choisir un fichier CSV<br><span class="muted">ou glissez-déposez-le ici</span></p>
+        <input id="csvFile" type="file" accept=".csv,text/csv" hidden>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button id="btn-import" class="btn primary" disabled>Importer</button>
+        <button id="btn-clear-file" class="btn ghost">Vider la sélection</button>
+      </div>
+      <div id="import-results" class="alert blue" style="display:none;margin-top:12px"></div>
+    </section>
+
+    <section id="export" class="card tab" hidden role="tabpanel">
+      <h3>📤 Export</h3>
+      <div class="grid grid-3" style="margin-top:8px">
+        <div class="card">
+          <h4>Transactions</h4>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn primary" id="export-tx-csv">CSV</button>
+            <button class="btn ghost" id="export-tx-json">JSON</button>
+            <button class="btn orange" id="export-tx-xlsx">XLSX</button>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Budgets</h4>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn primary" id="export-bud-csv">CSV</button>
+            <button class="btn ghost" id="export-bud-json">JSON</button>
+            <button class="btn orange" id="export-bud-xlsx">XLSX</button>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Maintenance</h4>
+          <div class="actions" style="margin-top:10px; gap:8px; flex-wrap:wrap">
+            <button class="btn ghost" id="snapshot-data">🛟 Sauvegarder (instantané)</button>
+            <button class="btn" style="background:#795548;color:#fff" id="restore-snapshot">↩️ Restaurer dernier instantané</button>
+          </div>
+          <hr style="border:none;border-top:1px solid #eee;margin:10px 0">
+          <div class="actions" style="gap:8px; flex-wrap:wrap">
+            <button class="btn red" id="reset-tx">Réinitialiser transactions</button>
+            <button class="btn red" id="reset-bud">Réinitialiser budgets</button>
+            <button class="btn red" id="reset-all">Réinitialiser transactions + budgets</button>
+          </div>
+          <p class="muted" style="margin-top:6px">⚠️ Un <b>instantané</b> est créé automatiquement avant chaque reset. Vous pouvez revenir en arrière via <i>"Restaurer dernier instantané"</i>.</p>
+          <div id="snap-info" class="badge" style="margin-top:6px; display:inline-block"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="charts" class="card tab" hidden role="tabpanel">
+      <h3>📈 Graphiques</h3>
+      <p class="muted">Cliquez une part du camembert pour afficher le détail des transactions.</p>
+      <div class="grid" style="grid-template-columns: 1fr 1fr">
+        <div class="card"><canvas id="pie-categories" height="220"></canvas></div>
+        <div class="card"><canvas id="line-mensuel" height="220"></canvas></div>
+      </div>
+      <details style="margin-top:12px">
+        <summary>🧾 Détail de la sélection</summary>
+        <div id="chart-detail" class="list" style="margin-top:10px"></div>
+      </details>
+    </section>
+
+    <section id="prefs" class="card tab" hidden role="tabpanel">
+      <h3>⚙️ Réglages</h3>
+      <div class="grid grid-3" style="margin-top:8px">
+        <div class="card">
+          <h4>Affichage</h4>
+          <label>Onglet par défaut</label>
+          <select id="pref-default-tab">
+            <option value="dashboard">Tableau de bord</option>
+            <option value="budgets">Budgets</option>
+            <option value="add">Ajouter</option>
+            <option value="history">Historique</option>
+            <option value="search">Rechercher</option>
+            <option value="import">Import</option>
+            <option value="export">Export</option>
+            <option value="charts">Graphiques</option>
+          </select>
+        </div>
+        <div class="card">
+          <h4>Format</h4>
+          <label>Langue/formatage</label>
+          <select id="pref-locale">
+            <option value="fr-FR">fr-FR</option>
+            <option value="en-US">en-US</option>
+            <option value="de-DE">de-DE</option>
+          </select>
+        </div>
+      </div>
+        <div class="actions" style="margin-top:10px; gap:10px; flex-wrap:wrap">
+        <button class="btn primary" id="save-prefs">Enregistrer</button>
+        <button class="btn red" id="wipe-data">🧹 Vider toutes les données</button>
+        </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+
+  <script>
+  // ====== ÉTAT GLOBAL ======
+  let transactions = [];
+  let budgets = [];
+  let csvRaw = null;
+  let pendingImport = null;
+  let charts = { pie:null, line:null };
+  let lastBudgetAnalysis = [];
+
+  let state = {
+    selectedMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    historyMode: 'list',
+    historyScope: 'selected',
+    tableSort: {key:'date', dir:'desc'},
+    tablePage: 1,
+    tablePageSize: 10,
+    tableFilter: ''
+  };
+
+  // ====== UTILITAIRES ======
+  const LS_TX = 'budgetTransactions';
+  const LS_BG = 'budgetBudgets';
+  const LS_PREF = 'budgetPrefs';
+  const LS_SNAP = 'budgetSnapshot';
+
+  const storage = {
+    get(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } },
+    set(key, val){ try{ localStorage.setItem(key, val); return true; }catch(e){ return false; } },
+    remove(key){ try{ localStorage.removeItem(key); }catch(e){} }
+  };
+
+  const readJSON = (key, fallback)=>{
+    const raw = storage.get(key);
+    if(!raw) return fallback;
+    try{ return JSON.parse(raw); }catch(e){ return fallback; }
+  };
+  const writeJSON = (key, val)=> storage.set(key, JSON.stringify(val));
+
+  const $ = (id)=>document.getElementById(id);
+  const fmt = (n)=> (n>=0?'+':'') + n.toLocaleString(getLocale(), {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  const fmtAbs = (n)=> Math.abs(n).toLocaleString(getLocale(), {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+  const getLocale = ()=> readJSON(LS_PREF, {}).locale || 'fr-FR';
+  const escapeHtml = (s)=> (s??'').toString().replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function saveAll(){
+    writeJSON(LS_TX, transactions);
+    writeJSON(LS_BG, budgets);
+    const prefs = readJSON(LS_PREF, {});
+    prefs.historyMode = state.historyMode;
+    prefs.historyScope = state.historyScope;
+    prefs.tablePageSize = state.tablePageSize;
+    prefs.selectedMonth = monthInputValue(state.selectedMonth);
+    writeJSON(LS_PREF, prefs);
+    updateSnapshotInfo();
+  }
+
+  function loadAll(){
+    transactions = readJSON(LS_TX, []);
+    budgets = readJSON(LS_BG, []);
+    const prefs = readJSON(LS_PREF, {});
+    if(prefs.locale) $('pref-locale').value = prefs.locale;
+    if(prefs.defaultTab) $('pref-default-tab').value = prefs.defaultTab;
+    if(prefs.historyMode) state.historyMode = prefs.historyMode;
+    if(prefs.historyScope) state.historyScope = prefs.historyScope;
+    if(prefs.tablePageSize) state.tablePageSize = parseInt(prefs.tablePageSize,10) || state.tablePageSize;
+    if(prefs.selectedMonth){
+      const parsed = parseMonthInput(prefs.selectedMonth);
+      if(parsed) state.selectedMonth = parsed;
+    }
+    activateTab(prefs.defaultTab || 'dashboard');
+    refreshAll();
+  }
+
+  // ====== SNAPSHOT / RESET ======
+  function snapshotData(note='auto'){
+    try{
+      const snap = {
+        ts: Date.now(),
+        note,
+        transactions: JSON.parse(JSON.stringify(transactions)),
+        budgets: JSON.parse(JSON.stringify(budgets))
+      };
+      writeJSON(LS_SNAP, snap);
+      updateSnapshotInfo();
+      return true;
+    }catch(e){
+      alert('Impossible de créer un instantané: ' + e.message);
+      return false;
+    }
+  }
+
+  function readSnapshot(){ return readJSON(LS_SNAP, null); }
+
+  function updateSnapshotInfo(){
+    const info = $('snap-info'); if(!info) return;
+    const s = readSnapshot();
+    if(!s){ info.textContent = 'Aucun instantané enregistré.'; return; }
+    const dt = new Date(s.ts).toLocaleString(getLocale());
+    info.textContent = `Instantané: ${dt} — ${s.note||'auto'}`;
+  }
+
+  function restoreSnapshot(){
+    const s = readSnapshot();
+    if(!s){ alert('Aucun instantané disponible.'); return; }
+    if(!confirm('Restaurer le dernier instantané (transactions + budgets) ?')) return;
+    transactions = s.transactions || [];
+    budgets = s.budgets || [];
+    saveAll(); refreshAll();
+    alert('Données restaurées depuis l\'instantané.');
+  }
+
+  function resetTransactions(){
+    if(!confirm('Réinitialiser TOUTES les transactions ?')) return;
+    snapshotData('resetTransactions');
+    transactions = [];
+    saveAll(); refreshAll();
+    alert('Transactions réinitialisées.');
+  }
+
+  function resetBudgets(){
+    if(!confirm('Réinitialiser TOUS les budgets ? Les catégories des dépenses seront retirées.')) return;
+    snapshotData('resetBudgets');
+    budgets = [];
+    for(const t of transactions){ if(t.type==='depense') t.categorie = null; }
+    saveAll(); refreshAll();
+    alert('Budgets réinitialisés. Les dépenses ont été désaffectées.');
+  }
+
+  function resetAll(){
+    if(!confirm('Réinitialiser transactions ET budgets ?')) return;
+    snapshotData('resetAll');
+    transactions = [];
+    budgets = [];
+    saveAll(); refreshAll();
+    alert('Transactions et budgets réinitialisés.');
+  }
+
+  function wipeAllData(){
+    if(!confirm('Supprimer toutes les données locales (transactions, budgets, réglages, instantanés) ?')) return;
+    storage.remove(LS_TX);
+    storage.remove(LS_BG);
+    storage.remove(LS_PREF);
+    storage.remove(LS_SNAP);
+    transactions = [];
+    budgets = [];
+    state.selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    state.historyMode = 'list';
+    state.historyScope = 'selected';
+    state.tableSort = {key:'date', dir:'desc'};
+    state.tablePage = 1;
+    state.tablePageSize = 10;
+    state.tableFilter = '';
+    updateSnapshotInfo();
+    refreshAll();
+    alert('Toutes les données ont été supprimées. L\'application est repartie sur une base vierge.');
+  }
+
+  // ====== CALCULS & ANALYSES ======
+  function formatMonthLabel(date){
+    return date.toLocaleDateString(getLocale(), {month:'long', year:'numeric'});
+  }
+
+  function monthInputValue(date){
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+  }
+
+  function parseMonthInput(value){
+    if(!value) return null;
+    const parts = value.split('-');
+    if(parts.length < 2) return null;
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    if(Number.isNaN(year) || Number.isNaN(month)) return null;
+    return new Date(year, month-1, 1);
+  }
+
+  function monthBounds(base = state.selectedMonth){
+    const start = new Date(base.getFullYear(), base.getMonth(), 1);
+    const end = new Date(base.getFullYear(), base.getMonth()+1, 1);
+    return {start, end};
+  }
+
+  function isWithinBounds(date, bounds){
+    return date >= bounds.start && date < bounds.end;
+  }
+
+  function getTransactionsForMonth(base = state.selectedMonth){
+    const bounds = monthBounds(base);
+    return transactions.filter(t=>{
+      const dt = new Date(t.date);
+      return isWithinBounds(dt, bounds);
+    });
+  }
+
+  function getTransactionsForScope(){
+    return state.historyScope === 'selected' ? getTransactionsForMonth() : transactions.slice();
+  }
+
+  function totals(rows = getTransactionsForMonth()){
+    let revenus = 0;
+    let depenses = 0;
+    for(const t of rows){
+      if(t.type === 'revenu') revenus += t.montant;
+      else if(t.type === 'depense') depenses += t.montant;
+    }
+    return {revenus, depenses, solde: revenus - depenses};
+  }
+
+  function monthSpendByCat(base = state.selectedMonth){
+    const rows = getTransactionsForMonth(base);
+    const map = {};
+    for(const t of rows){
+      if(t.type !== 'depense') continue;
+      const key = t.categorie || '— Sans budget';
+      map[key] = (map[key] || 0) + t.montant;
+    }
+    return map;
+  }
+
+  function monthSeries(n = 6, base = state.selectedMonth){
+    const anchor = new Date(base.getFullYear(), base.getMonth(), 1);
+    const out = [];
+    for(let i=n-1;i>=0;i--){
+      const dt = new Date(anchor.getFullYear(), anchor.getMonth()-i, 1);
+      const bounds = monthBounds(dt);
+      let revenus = 0;
+      let depenses = 0;
+      for(const t of transactions){
+        const td = new Date(t.date);
+        if(isWithinBounds(td, bounds)){
+          if(t.type === 'revenu') revenus += t.montant;
+          else if(t.type === 'depense') depenses += t.montant;
+        }
+      }
+      out.push({label: dt.toLocaleDateString(getLocale(), {month:'short', year:'2-digit'}), revenus, depenses, solde: revenus - depenses});
+    }
+    return out;
+  }
+
+  function currentMonthUsage(cat, base = state.selectedMonth){
+    if(!cat) return 0;
+    const rows = getTransactionsForMonth(base);
+    const total = rows.filter(t=> t.type === 'depense' && t.categorie === cat)
+                      .reduce((sum, t)=> sum + t.montant, 0);
+    console.log(`Budget "${cat}": ${total}€ dépensés ce mois`);
+    return total;
+  }
+
+  function formatDelta(value){
+    return (value >= 0 ? '+' : '-') + fmtAbs(value);
+  }
+
+  function computeTopCategories(limit = 5, base = state.selectedMonth){
+    const map = monthSpendByCat(base);
+    const entries = Object.entries(map)
+      .map(([label, amount])=>({label, amount}))
+      .sort((a,b)=> b.amount - a.amount);
+    const total = entries.reduce((sum, entry)=> sum + entry.amount, 0);
+    return { total, entries: entries.slice(0, limit) };
+  }
+
+  function computeBudgetRows(base = state.selectedMonth){
+    const rows = budgets.map(b=>{
+      const realise = currentMonthUsage(b.categorie, base);
+      const prevu = b.montant;
+      const ecart = prevu - realise;
+      const ratio = prevu > 0 ? (realise / prevu) : (realise > 0 ? 1 : 0);
+      let statut = 'Dans les limites';
+      let statutIcon = '✅';
+      let statutClass = 'delta-positive';
+      if(prevu === 0 && realise > 0){
+        statut = 'Aucune enveloppe';
+        statutIcon = '⚠️';
+        statutClass = 'delta-negative';
+      }else if(ratio >= 1){
+        statut = 'Dépassé';
+        statutIcon = '🚨';
+        statutClass = 'delta-negative';
+      }else if(ratio >= 0.8){
+        statut = 'Vigilance';
+        statutIcon = '⚠️';
+        statutClass = 'delta-negative';
+      }
+      return { categorie: b.categorie, prevu, realise, ecart, ratio, statut, statutIcon, statutClass };
+    });
+    const monthRows = getTransactionsForMonth(base);
+    const sansBudget = monthRows.filter(t=> t.type === 'depense' && !t.categorie).reduce((sum, t)=> sum + t.montant, 0);
+    if(sansBudget > 0){
+      rows.push({ categorie: '— Sans budget —', prevu: 0, realise: sansBudget, ecart: -sansBudget, ratio: 1, statut: 'À catégoriser', statutIcon: '🗂️', statutClass: 'delta-negative' });
+    }
+    return rows;
+  }
+
+  function computeDeltas(base = state.selectedMonth){
+    const previousDate = new Date(base.getFullYear(), base.getMonth()-1, 1);
+    const currentRows = getTransactionsForMonth(base);
+    const previousRows = getTransactionsForMonth(previousDate);
+    const current = totals(currentRows);
+    const previous = totals(previousRows);
+    const items = [
+      {label:'Revenus', value: current.revenus, previous: previous.revenus, positiveWhenHigher:true},
+      {label:'Dépenses', value: current.depenses, previous: previous.depenses, positiveWhenHigher:false},
+      {label:'Solde', value: current.solde, previous: previous.solde, positiveWhenHigher:true}
+    ].map(item=>{
+      const delta = item.value - item.previous;
+      const pct = item.previous !== 0 ? (delta / item.previous) * 100 : null;
+      const positive = item.positiveWhenHigher ? delta >= 0 : delta <= 0;
+      return {...item, delta, pct, positive};
+    });
+    return { items, previousLabel: formatMonthLabel(previousDate), hasPrevious: previousRows.length > 0 };
+  }
+
+  // ====== UI RENDER ======
+  function updatePeriodControls(){
+    const label = formatMonthLabel(state.selectedMonth);
+    $('period-label').textContent = `Analyse du mois de ${label}`;
+    const picker = $('period-picker');
+    if(picker){
+      const value = monthInputValue(state.selectedMonth);
+      if(picker.value !== value) picker.value = value;
+    }
+    $('kpi-period-label').textContent = label;
+  }
+
+  function refreshKPIs(){
+    const monthRows = getTransactionsForMonth();
+    const {revenus, depenses, solde} = totals(monthRows);
+    $('kpi-revenus').textContent = fmt(revenus);
+    $('kpi-depenses').textContent = depenses === 0 ? fmtAbs(0) : '-'+fmtAbs(depenses);
+    $('kpi-revenus-nb').textContent = monthRows.filter(t=>t.type==='revenu').length + ' ligne(s)';
+    $('kpi-depenses-nb').textContent = monthRows.filter(t=>t.type==='depense').length + ' ligne(s)';
+    $('kpi-solde').textContent = fmt(solde);
+    const s = $('solde-display');
+    s.textContent = fmt(solde);
+    s.className = 'solde ' + (solde>=0?'positif':'negatif');
+  }
+
+  function renderAlerts(){
+    const wrap = $('alerts');
+    wrap.innerHTML='';
+    const monthRows = getTransactionsForMonth();
+    const nonAffectees = monthRows.filter(t=>t.type==='depense' && !t.categorie).length;
+    if(nonAffectees>0){
+      wrap.insertAdjacentHTML('beforeend', `<div class="alert red">⚠ <b>${nonAffectees} dépense(s) non affectée(s)</b> — assignez-les à un budget.</div>`);
+    }
+    for(const b of budgets){
+      const dep = currentMonthUsage(b.categorie, state.selectedMonth);
+      const pct = b.montant>0 ? (dep/b.montant)*100 : 0;
+      if(pct>=100){
+        wrap.insertAdjacentHTML('beforeend', `<div class="alert red">🚨 <b>Budget dépassé</b> — ${b.categorie}: ${fmtAbs(dep)} / ${fmtAbs(b.montant)} (${pct.toFixed(0)}%)</div>`);
+      }else if(pct>=80){
+        wrap.insertAdjacentHTML('beforeend', `<div class="alert orange">⚠️ <b>Seuil 80%</b> — ${b.categorie}: ${fmtAbs(dep)} / ${fmtAbs(b.montant)} (${pct.toFixed(0)}%)</div>`);
+      }
+    }
+  }
+
+  function optionsBudget(current=''){
+    // TOUJOURS recharger depuis localStorage
+    const allTx = readJSON(LS_TX, []);
+    const allBudgets = readJSON(LS_BG, []);
+    
+    // Calculer bornes du mois
+    const startDate = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth(), 1);
+    const endDate = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth() + 1, 1);
+    
+    // Filtrer transactions du mois
+    const monthTx = allTx.filter(t => {
+      const d = new Date(t.date);
+      return d >= startDate && d < endDate;
+    });
+    
+    let html = `<option value="">— Aucun budget —</option>`;
+    
+    for(const b of allBudgets){
+      // Calculer dépenses pour CE budget
+      const depenses = monthTx.filter(t => 
+        t.type === 'depense' && 
+        t.categorie && 
+        t.categorie.trim().toLowerCase() === b.categorie.trim().toLowerCase()
+      );
+      
+      const dep = depenses.reduce((sum, t) => sum + t.montant, 0);
+      const reste = Math.max(0, b.montant - dep);
+      const pct = b.montant > 0 ? (dep / b.montant * 100) : 0;
+      
+      let flag = '✅';
+      if(reste <= 0) flag = '🚨';
+      else if(pct >= 80) flag = '⚠️';
+      
+      const sel = (current && current.trim().toLowerCase() === b.categorie.trim().toLowerCase()) ? 'selected' : '';
+      
+      html += `<option ${sel} value="${escapeHtml(b.categorie)}">${flag} ${escapeHtml(b.categorie)} (reste: ${fmtAbs(reste)})</option>`;
+    }
+    
+    return html;
+  }
+  
+  function diagnosticBudgets(){
+    console.clear();
+    console.log('\n🔍 DIAGNOSTIC BUDGETS COMPLET');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📅 Mois analysé:', formatMonthLabel(state.selectedMonth));
+    console.log('📊 Total transactions:', transactions.length);
+    console.log('💼 Total budgets:', budgets.length);
+    console.log('');
+    
+    // Afficher tous les budgets
+    console.log('💰 BUDGETS DÉFINIS:');
+    budgets.forEach(b => {
+      console.log(`  - "${b.categorie}": ${b.montant}€/mois (ID: ${b.id})`);
+    });
+    console.log('');
+    
+    const monthTx = getTransactionsForMonth();
+    console.log(`📝 TRANSACTIONS DU MOIS (${monthTx.length} total):`);
+    
+    const depenses = monthTx.filter(t => t.type === 'depense');
+    const revenus = monthTx.filter(t => t.type === 'revenu');
+    
+    console.log(`  💸 Dépenses: ${depenses.length}`);
+    console.log(`  💰 Revenus: ${revenus.length}`);
+    console.log('');
+    
+    const affectees = depenses.filter(t => t.categorie);
+    const nonAffectees = depenses.filter(t => !t.categorie);
+    
+    console.log(`✅ Dépenses affectées: ${affectees.length}`);
+    affectees.forEach(t => {
+      console.log(`  - "${t.description}": ${t.montant}€ → Budget: "${t.categorie}"`);
+    });
+    console.log('');
+    
+    console.log(`❌ Dépenses NON affectées: ${nonAffectees.length}`);
+    nonAffectees.forEach(t => {
+      console.log(`  - "${t.description}": ${t.montant}€ (aucun budget)`);
+    });
+    console.log('');
+    
+    console.log('📊 CALCUL PAR BUDGET:');
+    budgets.forEach(b => {
+      console.log(`\n  📂 ${b.categorie}:`);
+      console.log(`    Budget alloué: ${b.montant}€`);
+      
+      const txBudget = affectees.filter(t => t.categorie && t.categorie.trim() === b.categorie.trim());
+      console.log(`    Transactions trouvées: ${txBudget.length}`);
+      
+      if(txBudget.length > 0){
+        txBudget.forEach(t => {
+          console.log(`      • ${t.description}: ${t.montant}€`);
+        });
+      }
+      
+      const total = txBudget.reduce((sum, t) => sum + t.montant, 0);
+      const reste = b.montant - total;
+      const pct = b.montant > 0 ? (total / b.montant * 100).toFixed(1) : 0;
+      
+      console.log(`    Total dépensé: ${total.toFixed(2)}€`);
+      console.log(`    Reste: ${reste.toFixed(2)}€`);
+      console.log(`    Utilisation: ${pct}%`);
+      
+      if(total > b.montant){
+        console.log(`    ⚠️ DÉPASSEMENT de ${(total - b.montant).toFixed(2)}€`);
+      }
+    });
+    
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ Diagnostic terminé\n');
+    
+    // Afficher aussi dans une alerte pour les utilisateurs sans console
+    const summary = `
+📊 RÉSUMÉ:
+• ${budgets.length} budget(s) défini(s)
+• ${depenses.length} dépense(s) ce mois
+• ${affectees.length} affectée(s)
+• ${nonAffectees.length} non affectée(s)
+
+${budgets.length > 0 ? '💰 PAR BUDGET:\n' + budgets.map(b => {
+  const txBudget = affectees.filter(t => t.categorie && t.categorie.trim() === b.categorie.trim());
+  const total = txBudget.reduce((sum, t) => sum + t.montant, 0);
+  return `• ${b.categorie}: ${total.toFixed(2)}€ / ${b.montant}€`;
+}).join('\n') : ''}
+
+Voir la console pour détails complets (F12)
+    `.trim();
+    
+    alert(summary);
+  }
+  
+  // Exposer globalement
+  window.diagnosticBudgets = diagnosticBudgets;
+  
+  // Fonction de test pour créer des données d'exemple
+  function creerDonneesTest(){
+    if(!confirm('Créer des données de test ? Cela ajoutera 3 budgets et 6 transactions au mois actuel.')){
+      return;
+    }
+    
+    console.log('═══ CRÉATION DONNÉES DE TEST ═══');
+    
+    // Créer 3 budgets
+    const testBudgets = [
+      { categorie: 'Alimentation', montant: 500 },
+      { categorie: 'Transport', montant: 200 },
+      { categorie: 'Loisirs', montant: 150 }
+    ];
+    
+    testBudgets.forEach(b => {
+      if(!budgets.find(existing => existing.categorie === b.categorie)){
+        budgets.push({ id: Date.now() + Math.random(), ...b });
+        console.log(`✓ Budget créé: ${b.categorie} (${b.montant}€)`);
+      } else {
+        console.log(`- Budget existant: ${b.categorie}`);
+      }
+    });
+    
+    // Créer 6 transactions pour le mois actuel
+    const testTransactions = [
+      { description: 'Courses Carrefour', montant: 75, type: 'depense', categorie: 'Alimentation' },
+      { description: 'Restaurant', montant: 45, type: 'depense', categorie: 'Alimentation' },
+      { description: 'Essence', montant: 60, type: 'depense', categorie: 'Transport' },
+      { description: 'Parking', montant: 15, type: 'depense', categorie: 'Transport' },
+      { description: 'Cinéma', montant: 25, type: 'depense', categorie: 'Loisirs' },
+      { description: 'Salaire', montant: 2500, type: 'revenu', categorie: null }
+    ];
+    
+    const today = new Date();
+    const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    testTransactions.forEach((t, i) => {
+      const tx = {
+        id: Date.now() + i + Math.random(),
+        date: new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 5).toISOString(),
+        ...t
+      };
+      transactions.push(tx);
+      console.log(`✓ Transaction créée: ${t.description} (${t.montant}€${t.categorie ? ' → ' + t.categorie : ''})`);
+    });
+    
+    saveAll();
+    
+    // Vérifier la sauvegarde
+    const stored = readJSON(LS_TX, []);
+    console.log(`✅ Sauvegarde: ${stored.length} transactions en localStorage`);
+    
+    // Actualiser l'interface
+    refreshAll();
+    
+    showToast('✅ Données de test créées !', 'success');
+    
+    // Afficher le diagnostic
+    setTimeout(() => {
+      diagnosticBudgets();
+    }, 500);
+  }
+  
+  window.creerDonneesTest = creerDonneesTest;
+  
+  // Fonction pour forcer le rafraîchissement complet
+  function forceRefreshBudgets(){
+    console.log('\n🔄 RAFRAÎCHISSEMENT FORCÉ');
+    
+    // Recharger depuis localStorage
+    transactions = readJSON(LS_TX, []);
+    budgets = readJSON(LS_BG, []);
+    
+    console.log('Données rechargées:');
+    console.log(`- ${transactions.length} transactions`);
+    console.log(`- ${budgets.length} budgets`);
+    
+    // Rafraîchir tout
+    refreshAll();
+    
+    showToast('✅ Budgets actualisés', 'success');
+    console.log('✅ Rafraîchissement terminé\n');
+  }
+  
+  window.forceRefreshBudgets = forceRefreshBudgets;
+
+  function renderRecent(){
+    const box = $('recent-list');
+    const monthRows = getTransactionsForMonth().slice().sort((a,b)=> new Date(b.date) - new Date(a.date));
+    if(monthRows.length===0){
+      box.innerHTML = `<div class="empty">Aucune transaction pour ce mois. <br><button class="btn primary" onclick="activateTab('add')">➕ Ajouter</button></div>`;
+      return;
+    }
+    box.innerHTML = monthRows.slice(0,8).map(t=> lineHTML(t)).join('');
+  }
+
+  function renderHistoryList(data=null){
+    const rows = (data? data.slice() : getTransactionsForScope().slice()).sort((a,b)=> new Date(b.date) - new Date(a.date));
+    const box = $('history-list');
+    if(rows.length===0){ box.innerHTML = `<div class="empty">Aucun résultat.</div>`;return; }
+    box.innerHTML = rows.map(t=> lineHTML(t,true)).join('');
+  }
+
+  function lineHTML(t, withEdit=false){
+    const affectee = (t.type==='revenu') || (t.type==='depense' && t.categorie);
+    const clsSel = affectee? 'ok':'non';
+    const catLabel = t.categorie ? escapeHtml(t.categorie) : '—';
+    return `<div class="line">
+      <div class="dot ${t.type}"></div>
+      <div>
+        <div class="desc">${escapeHtml(t.description)}</div>
+        <div class="date">📅 ${new Date(t.date).toLocaleDateString(getLocale())}</div>
+        ${t.type==='depense' ? `<div class="meta">📂 ${catLabel}</div>` : ''}
+      </div>
+      <div class="amt ${t.type}">${t.type==='revenu'?fmt(t.montant):('-'+fmtAbs(t.montant))}</div>
+      ${t.type==='depense'
+        ? `<select class="select-budget ${clsSel}" data-tx-id="${t.id}" onchange="affecter(${t.id}, this.value)">${optionsBudget(t.categorie||'')}</select>`
+        : `<div class="badge">💰 Revenu</div>`}
+      <div class="actions">
+        ${withEdit?`<button class="btn ghost" onclick="editTx(${t.id})">✏️</button>`:''}
+        <button class="btn red" onclick="supprimer(${t.id})">🗑️</button>
+      </div>
+    </div>`;
+  }
+
+  // ====== TABLE TRI + PAGINATION ======
+  function renderHistoryTable(){
+    const wrapList = $('history-list');
+    const wrapTable = $('history-table-wrap');
+    wrapList.hidden = true; wrapTable.hidden = false;
+
+    const q = state.tableFilter.trim().toLowerCase();
+    let rows = getTransactionsForScope();
+    if(q){
+      rows = rows.filter(t => (t.description||'').toLowerCase().includes(q) || (t.categorie||'').toLowerCase().includes(q));
+    }
+    const {key, dir} = state.tableSort;
+    rows.sort((a,b)=>{
+      let va, vb;
+      switch(key){
+        case 'date': va = new Date(a.date).getTime(); vb = new Date(b.date).getTime(); break;
+        case 'montant':
+          va = (a.type==='depense'?-a.montant:a.montant);
+          vb = (b.type==='depense'?-b.montant:b.montant);
+          break;
+        default:
+          va = (a[key]||'').toString().toLowerCase();
+          vb = (b[key]||'').toString().toLowerCase();
+      }
+      if(va<vb) return dir==='asc'?-1:1;
+      if(va>vb) return dir==='asc'?1:-1;
+      return 0;
+    });
+
+    const size = state.tablePageSize;
+    const total = rows.length;
+    const pages = Math.max(1, Math.ceil(total/size));
+    if(state.tablePage>pages) state.tablePage = pages;
+    const start = (state.tablePage-1)*size;
+    const pageRows = rows.slice(start, start+size);
+
+    document.querySelectorAll('#history-table-wrap thead th[data-key]').forEach(th=>{
+      th.classList.remove('sort-asc','sort-desc');
+      if(th.dataset.key===key){ th.classList.add(dir==='asc'?'sort-asc':'sort-desc'); }
+    });
+
+    const tbody = $('history-tbody');
+    if(pageRows.length===0){
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">Aucune transaction pour cette sélection.</td></tr>';
+    }else{
+      tbody.innerHTML = pageRows.map(t=>{
+        const montantSigned = t.type==='depense' ? -t.montant : t.montant;
+        const select = t.type==='depense'
+          ? `<select onchange="affecter(${t.id}, this.value)">${optionsBudget(t.categorie||'')}</select>`
+          : `<span class="badge">💰 Revenu</span>`;
+        const montantLabel = montantSigned>=0 ? fmt(montantSigned) : '-'+fmtAbs(-montantSigned);
+        return `<tr>
+          <td>${new Date(t.date).toLocaleDateString(getLocale())}</td>
+          <td>${escapeHtml(t.description)}</td>
+          <td>${t.type}</td>
+          <td style="white-space:nowrap">${montantLabel}</td>
+          <td>${select}</td>
+          <td>
+            <button class="btn ghost" onclick="editTx(${t.id})">✏️</button>
+            <button class="btn red" onclick="supprimer(${t.id})">🗑️</button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    const pag = $('history-pagination');
+    let html = '';
+    html += `<button ${state.tablePage===1?'disabled':''} onclick="gotoPage(${state.tablePage-1})">Préc.</button>`;
+    const maxButtons = 7;
+    let from = Math.max(1, state.tablePage - Math.floor(maxButtons/2));
+    let to = Math.min(pages, from + maxButtons - 1);
+    from = Math.max(1, to - maxButtons + 1);
+    for(let p=from;p<=to;p++){
+      html += `<button class="${p===state.tablePage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+    }
+    html += `<button ${state.tablePage===pages?'disabled':''} onclick="gotoPage(${state.tablePage+1})">Suiv.</button>`;
+    pag.innerHTML = html;
+  }
+
+  function gotoPage(p){ state.tablePage = Math.max(1, p); renderHistoryTable(); }
+
+  function refreshAnalytics(){
+    const top = computeTopCategories();
+    const list = $('analysis-top-categories');
+    const badge = $('analysis-top-total');
+    const empty = $('analysis-top-empty');
+    if(top.entries.length===0){
+      list.innerHTML = '';
+      badge.textContent = '';
+      empty.hidden = false;
+    }else{
+      empty.hidden = true;
+      badge.textContent = `Total : ${fmtAbs(top.total)}`;
+      list.innerHTML = top.entries.map((entry, idx)=>{
+        const share = top.total>0 ? (entry.amount/top.total)*100 : 0;
+        const shareLabel = share>0 ? `${share.toFixed(1)}%` : '';
+        return `<div class="stat-line"><span class="label">${idx+1}. ${escapeHtml(entry.label)}</span><span class="value">-${fmtAbs(entry.amount)}</span><span class="share">${shareLabel}</span></div>`;
+      }).join('');
+    }
+
+    const deltas = computeDeltas();
+    const deltaBox = $('analysis-deltas');
+    deltaBox.innerHTML = deltas.items.map(item=>{
+      const valueStr = item.label==='Dépenses' ? (item.value===0?'-0,00 €':'-'+fmtAbs(item.value)) : fmt(item.value);
+      const deltaStr = item.delta===0 ? '0,00 €' : formatDelta(item.delta);
+      const pctStr = item.pct===null ? '—' : `${item.pct>=0?'+':'-'}${Math.abs(item.pct).toFixed(1)}%`;
+      return `<div class="delta-row"><div class="label">${item.label}</div><div class="value">${valueStr}</div><div class="delta ${item.positive?'delta-positive':'delta-negative'}">${deltaStr}<span class="pct">${pctStr}</span></div></div>`;
+    }).join('');
+    $('analysis-deltas-note').textContent = deltas.hasPrevious ? `Référence : ${deltas.previousLabel}` : 'Pas de transactions pour le mois précédent.';
+
+    const budgetRows = computeBudgetRows();
+    lastBudgetAnalysis = budgetRows;
+    const tbody = $('analysis-budgets');
+    const exportBtn = $('analysis-budgets-export');
+    if(!budgetRows.length){
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">Ajoutez un budget pour visualiser vos écarts.</td></tr>';
+      if(exportBtn) exportBtn.disabled = true;
+    }else{
+      tbody.innerHTML = budgetRows.map(row=>{
+        const ratioLabel = row.prevu>0 ? `${Math.round(Math.min(row.ratio*100, 999))}%` : '—';
+        const realiseLabel = row.realise===0 ? '0,00 €' : '-'+fmtAbs(row.realise);
+        const ecartLabel = row.ecart===0 ? '0,00 €' : formatDelta(row.ecart);
+        return `<tr>
+          <td>${escapeHtml(row.categorie)}</td>
+          <td>${fmtAbs(row.prevu)}</td>
+          <td>${realiseLabel}</td>
+          <td class="${row.ecart>=0?'delta-positive':'delta-negative'}">${ecartLabel}</td>
+          <td><span class="${row.statutClass}">${row.statutIcon} ${row.statut}</span><div class="muted" style="font-size:.8rem">${ratioLabel}</div></td>
+        </tr>`;
+      }).join('');
+      if(exportBtn) exportBtn.disabled = false;
+    }
+  }
+
+  function exportAnalysisBudgets(){
+    if(!lastBudgetAnalysis.length){ alert('Aucun budget à exporter.'); return; }
+    const rows = lastBudgetAnalysis.map(row=>({
+      mois: monthInputValue(state.selectedMonth),
+      budget: row.categorie,
+      prevu: row.prevu,
+      realise: row.realise,
+      ecart: row.ecart,
+      statut: row.statut,
+      taux: row.prevu>0 ? Math.round(Math.min(row.ratio*100, 999)) : ''
+    }));
+    download(`budgets-${monthInputValue(state.selectedMonth)}.csv`, toCSV(rows));
+  }
+
+  // ====== CRUD ======
+  function addTx(type){
+    const montant = parseFloat($('montant').value);
+    const description = ($('description').value||'').trim();
+    const cat = $('categorie').value ? $('categorie').value.trim() : null;
+    
+    if(!(montant>0)){ 
+      showToast('❌ Le montant doit être positif', 'error'); 
+      return; 
+    }
+    if(!description){ 
+      showToast('❌ La description est obligatoire', 'error'); 
+      return; 
+    }
+    
+    const tx = { 
+      id: Date.now(), 
+      date: new Date().toISOString(), 
+      montant, 
+      description, 
+      type, 
+      categorie: (type === 'depense' ? cat : null) 
+    };
+    
+    console.log('═══ AJOUT TRANSACTION ═══');
+    console.log('Type:', type);
+    console.log('Description:', description);
+    console.log('Montant:', montant);
+    if(type === 'depense' && cat) {
+      console.log('Catégorie:', cat);
+    }
+    
+    transactions.unshift(tx);
+    saveAll(); 
+    
+    // Vérification
+    const stored = readJSON(LS_TX, []);
+    if(stored.find(t => t.id === tx.id)){
+      console.log('✅ Transaction sauvegardée');
+    } else {
+      console.error('❌ Échec de sauvegarde');
+    }
+    
+    // Mise à jour ciblée pour performance
+    refreshKPIs();
+    renderAlerts();
+    refreshAnalytics();
+    renderBudgets();
+    renderRecent();
+    
+    // Réinitialiser le formulaire
+    $('montant').value=''; 
+    $('description').value=''; 
+    $('categorie').value='';
+    
+    // Feedback visuel
+    const message = type === 'revenu' 
+      ? `💰 Revenu ajouté: ${fmt(montant)}` 
+      : `💸 Dépense ajoutée: ${fmtAbs(montant)}${cat ? ' → '+cat : ''}`;
+    showToast(message, 'success');
+  }
+
+  function affecter(id, cat){
+    console.log('🔄 AFFECTATION - Transaction ID:', id, 'vers catégorie:', cat);
+    
+    // 1. Trouver et modifier la transaction
+    const txIndex = transactions.findIndex(x => x.id === id);
+    if(txIndex === -1) {
+      console.error('Transaction non trouvée');
+      showToast('Erreur: transaction introuvable', 'error');
+      return;
+    }
+    
+    const t = transactions[txIndex];
+    if(t.type !== 'depense'){
+      console.warn('Pas une dépense');
+      return;
+    }
+    
+    // 2. Modifier directement dans le tableau
+    transactions[txIndex].categorie = cat ? cat.trim() : null;
+    
+    console.log('Catégorie mise à jour:', transactions[txIndex].categorie);
+    
+    // 3. Sauvegarder IMMÉDIATEMENT
+    const saved = writeJSON(LS_TX, transactions);
+    if(!saved){
+      console.error('Échec sauvegarde');
+      showToast('Erreur de sauvegarde', 'error');
+      return;
+    }
+    
+    // 4. RECHARGER depuis localStorage pour synchroniser
+    transactions = readJSON(LS_TX, []);
+    budgets = readJSON(LS_BG, []);
+    
+    console.log('Données rechargées:', transactions.length, 'transactions');
+    
+    // 5. TOUT rafraîchir en une seule fois
+    refreshAll();
+    
+    // 6. Notification
+    showToast(cat ? `Affecté à "${cat}"` : 'Budget retiré', 'success');
+  }
+  
+  function updateAllBudgetSelects(){
+    // Cette fonction n'est plus nécessaire car refreshAll() recharge tout
+  }
+  
+  function showToast(message, type='info'){
+    const existing = document.querySelector('.toast');
+    if(existing) existing.remove();
+    
+    const colors = {
+      success: '#4caf50',
+      error: '#f44336',
+      info: '#2196f3'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: ${colors[type] || colors.info};
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+      z-index: 9999;
+      animation: slideIn 0.3s ease;
+      font-weight: 700;
+      font-size: 0.95rem;
+      max-width: 350px;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(()=>{
+      toast.style.animation = 'slideOut 0.3s ease';
+      setTimeout(()=> toast.remove(), 300);
+    }, 2500);
+  }
+  
+  // Ajouter les animations CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+    .select-budget {
+      transition: all 0.3s ease;
+    }
+    .budget-item {
+      transition: all 0.3s ease;
+    }
+    .progress .bar {
+      transition: width 0.5s ease;
+    }
+  `;
+  document.head.appendChild(style);
+
+  function supprimer(id){
+    if(!confirm('Supprimer cette transaction ?')) return;
+    transactions = transactions.filter(t=>t.id!==id); 
+    saveAll(); 
+    
+    // Mise à jour ciblée
+    refreshKPIs();
+    renderAlerts();
+    refreshAnalytics();
+    renderBudgets();
+    renderRecent();
+    
+    // Si on est dans l'historique, le mettre à jour aussi
+    if(state.historyMode === 'table') renderHistoryTable();
+    else renderHistoryList();
+    
+    showToast('🗑️ Transaction supprimée', 'success');
+  }
+
+  function editTx(id){
+    const t = transactions.find(x=>x.id===id); 
+    if(!t) return;
+    const desc = prompt('Description', t.description); 
+    if(desc===null) return;
+    let amt = prompt('Montant (€)', t.montant); 
+    if(amt===null) return;
+    const v = parseFloat(amt);
+    if(!(v>0)){ 
+      showToast('❌ Montant invalide', 'error'); 
+      return; 
+    }
+    t.description = desc.trim(); 
+    t.montant = v;
+    saveAll(); 
+    
+    // Mise à jour ciblée
+    refreshKPIs();
+    renderAlerts();
+    refreshAnalytics();
+    renderBudgets();
+    renderRecent();
+    
+    if(state.historyMode === 'table') renderHistoryTable();
+    else renderHistoryList();
+    
+    showToast('✏️ Transaction modifiée', 'success');
+  }
+
+  // ====== BUDGETS ======
+  function addBudget(){
+    const cat = ($('budget-categorie').value||'').trim();
+    const amount = parseFloat($('budget-montant').value);
+    if(!cat){ 
+      showToast('❌ Catégorie obligatoire', 'error'); 
+      return; 
+    }
+    if(!(amount>0)){ 
+      showToast('❌ Montant invalide', 'error'); 
+      return; 
+    }
+    if(budgets.some(b=>b.categorie.toLowerCase()===cat.toLowerCase())){ 
+      showToast('❌ Budget déjà existant', 'error'); 
+      return; 
+    }
+    budgets.push({id:Date.now(), categorie:cat, montant:amount}); 
+    $('budget-categorie').value=''; 
+    $('budget-montant').value='';
+    saveAll(); 
+    
+    // Mise à jour ciblée
+    renderBudgets();
+    refreshAnalytics();
+    renderAlerts();
+    
+    // Mettre à jour tous les selects de catégorie
+    document.querySelectorAll('#categorie, .select-budget').forEach(s=> {
+      const currentVal = s.value;
+      s.innerHTML = optionsBudget(currentVal);
+    });
+    
+    showToast(`🎯 Budget "${cat}" créé`, 'success');
+  }
+
+  function delBudget(id){
+    const b = budgets.find(x=>x.id===id); 
+    if(!b) return;
+    if(!confirm(`Supprimer le budget "${b.categorie}" ?`)) return;
+    budgets = budgets.filter(x=>x.id!==id);
+    for(const t of transactions){ 
+      if(t.categorie===b.categorie) t.categorie=null; 
+    }
+    saveAll(); 
+    
+    // Mise à jour ciblée
+    renderBudgets();
+    refreshAnalytics();
+    renderAlerts();
+    renderRecent();
+    
+    // Mettre à jour tous les selects
+    document.querySelectorAll('#categorie, .select-budget').forEach(s=> {
+      s.innerHTML = optionsBudget();
+    });
+    
+    showToast(`🗑️ Budget "${b.categorie}" supprimé`, 'success');
+  }
+
+  function renderBudgets(){
+    const wrap = $('budgets-list');
+    if(!wrap) return;
+    
+    if(budgets.length === 0){ 
+      wrap.innerHTML = `<div class="empty">Aucun budget. Créez votre premier budget ci-dessus.</div>`; 
+      return; 
+    }
+    
+    console.log('🔄 RENDU BUDGETS');
+    
+    // TOUJOURS recharger depuis localStorage
+    const allTx = readJSON(LS_TX, []);
+    
+    // Calculer les bornes du mois
+    const startDate = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth(), 1);
+    const endDate = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth() + 1, 1);
+    
+    console.log('Période:', startDate.toLocaleDateString(), 'à', endDate.toLocaleDateString());
+    
+    // Filtrer transactions du mois
+    const monthTx = allTx.filter(t => {
+      const d = new Date(t.date);
+      return d >= startDate && d < endDate;
+    });
+    
+    console.log(`${monthTx.length} transactions ce mois`);
+    
+    // Générer HTML pour chaque budget
+    const html = budgets.map(b => {
+      // Calculer les dépenses pour CE budget
+      const depensesBudget = monthTx.filter(t => 
+        t.type === 'depense' && 
+        t.categorie && 
+        t.categorie.trim().toLowerCase() === b.categorie.trim().toLowerCase()
+      );
+      
+      const totalDepense = depensesBudget.reduce((sum, t) => sum + t.montant, 0);
+      const pct = b.montant > 0 ? Math.min(100, (totalDepense / b.montant) * 100) : 0;
+      const reste = Math.max(0, b.montant - totalDepense);
+      
+      console.log(`${b.categorie}: ${depensesBudget.length} tx = ${totalDepense.toFixed(2)}€ / ${b.montant}€`);
+      
+      let bar = 'ok', status = '✅ Dans les limites';
+      if(pct >= 100){ bar = 'bad'; status = '🚨 Dépassé'; }
+      else if(pct >= 80){ bar = 'warn'; status = '⚠️ Vigilance'; }
+      
+      return `<div class="budget-item">
+        <div class="budget-head">
+          <div><b>📂 ${escapeHtml(b.categorie)}</b></div>
+          <div><b>${fmtAbs(b.montant)}/mois</b></div>
+          <div class="actions"><button class="btn red" onclick="delBudget(${b.id})">🗑️</button></div>
+        </div>
+        <div class="progress"><div class="bar ${bar}" style="width:${pct.toFixed(0)}%"></div></div>
+        <div class="row">
+          <span><b>Dépensé:</b> ${fmtAbs(totalDepense)}</span>
+          <span><b>Reste:</b> ${fmtAbs(reste)}</span>
+          <span><b>${pct.toFixed(0)}%</b></span>
+        </div>
+        <div style="font-weight:700; color:${bar==='bad'?'#f44336':bar==='warn'?'#f57c00':'#2e7d32'}">${status}</div>
+      </div>`;
+    }).join('');
+    
+    wrap.innerHTML = html;
+    console.log('✅ Budgets rendus');
+  }
+
+  // ====== RECHERCHE ======
+  function search(){
+    const q = ($('search-input').value||'').toLowerCase();
+    const box = $('search-results');
+    if(!q){ box.innerHTML=''; return; }
+    const res = transactions.filter(t=>(t.description||'').toLowerCase().includes(q) || (t.categorie||'').toLowerCase().includes(q));
+    box.innerHTML = res.map(t=> lineHTML(t, true)).join('');
+  }
+
+  // ====== IMPORT CSV ======
+  function detectDelimiter(line){
+    const cands=[',',';','\t','|']; 
+    let best=',', bestCount=0;
+    for(const d of cands){ 
+      const escaped = d === '\t' ? '\\t' : d === '|' ? '\\|' : d;
+      const count = (line.match(new RegExp(escaped,'g'))||[]).length; 
+      if(count>bestCount){ best=d; bestCount=count; } 
+    }
+    return best;
+  }
+
+  function parseCSVLine(line, delim){
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for(let i=0; i<line.length; i++){
+      const char = line[i];
+      
+      if(char === '"'){
+        if(inQuotes && line[i+1] === '"'){
+          current += '"';
+          i++;
+        }else{
+          inQuotes = !inQuotes;
+        }
+      }else if(char === delim && !inQuotes){
+        result.push(current.trim());
+        current = '';
+      }else{
+        current += char;
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  function parseCSV(text){
+    const lines = text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(x=>x.trim());
+    if(lines.length < 2) throw new Error('Fichier CSV vide ou invalide');
+    
+    const delim = detectDelimiter(lines[0]);
+    const headers = parseCSVLine(lines[0], delim).map(h=>h.replace(/^["']|["']$/g,''));
+    
+    const data = [];
+    for(let i=1; i<lines.length; i++){
+      const values = parseCSVLine(lines[i], delim).map(v=>v.replace(/^["']|["']$/g,''));
+      const row = {};
+      headers.forEach((h,idx)=>{ row[h] = values[idx] || ''; });
+      data.push(row);
+    }
+    return {headers, data};
+  }
+
+  function findColumn(row, ...names){
+    for(const name of names){
+      const keys = Object.keys(row);
+      for(const key of keys){
+        if(key.toLowerCase().includes(name.toLowerCase())){
+          return row[key];
+        }
+      }
+    }
+    return null;
+  }
+
+  function parseDate(str){
+    if(!str) return null;
+    
+    // Format ISO: YYYY-MM-DD
+    let match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(match){
+      const d = new Date(parseInt(match[1]), parseInt(match[2])-1, parseInt(match[3]));
+      if(!isNaN(d.getTime())) return d;
+    }
+    
+    // Format FR: DD/MM/YYYY ou DD-MM-YYYY
+    match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(match){
+      const d = new Date(parseInt(match[3]), parseInt(match[2])-1, parseInt(match[1]));
+      if(!isNaN(d.getTime())) return d;
+    }
+    
+    // Format US: MM/DD/YYYY
+    match = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if(match){
+      const d = new Date(parseInt(match[3]), parseInt(match[1])-1, parseInt(match[2]));
+      if(!isNaN(d.getTime())) return d;
+    }
+    
+    // Fallback: essayer Date.parse
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function parseMontant(str){
+    if(!str) return 0;
+    
+    // Nettoyer: garder seulement chiffres, virgule, point, espace et signe moins
+    let clean = str.toString().trim().replace(/[^\d,.\s-]/g, '');
+    
+    // Remplacer les espaces (séparateurs de milliers)
+    clean = clean.replace(/\s/g, '');
+    
+    // Si virgule ET point présents, déterminer lequel est décimal
+    if(clean.includes(',') && clean.includes('.')){
+      const lastComma = clean.lastIndexOf(',');
+      const lastDot = clean.lastIndexOf('.');
+      if(lastComma > lastDot){
+        // Virgule est décimale (format FR)
+        clean = clean.replace(/\./g, '').replace(',', '.');
+      }else{
+        // Point est décimal (format US)
+        clean = clean.replace(/,/g, '');
+      }
+    }else if(clean.includes(',')){
+      // Seulement virgule: format FR
+      clean = clean.replace(',', '.');
+    }
+    
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  }
+
+  function importCSV(){
+    if(!csvRaw){ alert('Aucun fichier sélectionné'); return; }
+    
+    try{
+      const {headers, data} = parseCSV(csvRaw);
+      
+      // Afficher les en-têtes détectés pour debug
+      console.log('En-têtes détectés:', headers);
+      
+      let imported = 0;
+      let skipped = 0;
+      const errors = [];
+      
+      for(let i=0; i<data.length; i++){
+        const row = data[i];
+        
+        // Chercher la description
+        const desc = (
+          findColumn(row, 'description', 'libelle', 'libellé', 'desc', 'label') || ''
+        ).trim();
+        
+        if(!desc){
+          skipped++;
+          errors.push(`Ligne ${i+2}: description manquante`);
+          continue;
+        }
+        
+        // Chercher la date
+        const dateStr = findColumn(row, 'date', 'jour', 'day');
+        const date = parseDate(dateStr);
+        
+        if(!date){
+          skipped++;
+          errors.push(`Ligne ${i+2}: date invalide (${dateStr})`);
+          continue;
+        }
+        
+        // Chercher le montant
+        let montantStr = findColumn(row, 'montant', 'amount', 'somme', 'prix', 'price');
+        let montant = parseMontant(montantStr);
+        
+        // Si pas de montant, chercher débit/crédit
+        if(montant === 0){
+          const debit = parseMontant(findColumn(row, 'debit', 'débit', 'deb'));
+          const credit = parseMontant(findColumn(row, 'credit', 'crédit', 'cred'));
+          
+          if(debit !== 0) montant = -Math.abs(debit);
+          else if(credit !== 0) montant = Math.abs(credit);
+        }
+        
+        if(montant === 0){
+          skipped++;
+          errors.push(`Ligne ${i+2}: montant invalide (${montantStr})`);
+          continue;
+        }
+        
+        const type = montant > 0 ? 'revenu' : 'depense';
+        const categorie = type === 'depense' 
+          ? (findColumn(row, 'categorie', 'catégorie', 'budget', 'type') || null)
+          : null;
+        
+        const tx = {
+          id: Date.now() + imported + Math.random(),
+          date: date.toISOString(),
+          description: desc,
+          montant: Math.abs(montant),
+          type,
+          categorie
+        };
+        
+        transactions.push(tx);
+        imported++;
+      }
+      
+      saveAll(); refreshAll();
+      
+      const results = $('import-results');
+      results.style.display = 'block';
+      results.className = 'alert ' + (imported > 0 ? 'blue' : 'orange');
+      
+      let message = `✅ ${imported} transaction(s) importée(s)`;
+      if(skipped > 0){
+        message += ` • ${skipped} ignorée(s)`;
+      }
+      if(errors.length > 0 && errors.length <= 5){
+        message += '\n\nErreurs:\n' + errors.join('\n');
+      }else if(errors.length > 5){
+        message += `\n\n${errors.length} erreurs détectées (voir console)`;
+        console.log('Erreurs d\'import:', errors);
+      }
+      
+      results.textContent = message;
+      results.style.whiteSpace = 'pre-wrap';
+      
+      csvRaw = null;
+      $('csvFile').value = '';
+      $('btn-import').disabled = true;
+      
+    }catch(e){
+      const results = $('import-results');
+      results.style.display = 'block';
+      results.className = 'alert red';
+      results.textContent = '❌ Erreur: ' + e.message;
+      console.error('Erreur import:', e);
+    }
+  }
+
+  // ====== EXPORT ======
+  function toCSV(data){
+    if(!data.length) return '';
+    const headers = Object.keys(data[0]);
+    const rows = [headers.join(',')];
+    for(const item of data){
+      rows.push(headers.map(h=> `"${(item[h]??'').toString().replace(/"/g,'""')}"`).join(','));
+    }
+    return rows.join('\n');
+  }
+
+  function download(filename, text){
+    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
+  function exportTransactions(format){
+    if(!transactions.length){ alert('Aucune transaction à exporter'); return; }
+    const data = transactions.map(t=>({
+      date: new Date(t.date).toLocaleDateString(getLocale()),
+      description: t.description,
+      type: t.type,
+      montant: t.montant,
+      categorie: t.categorie || ''
+    }));
+    
+    if(format === 'csv'){
+      download('transactions.csv', toCSV(data));
+    }else if(format === 'json'){
+      download('transactions.json', JSON.stringify(data, null, 2));
+    }else if(format === 'xlsx'){
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+      XLSX.writeFile(wb, 'transactions.xlsx');
+    }
+  }
+
+  function exportBudgets(format){
+    if(!budgets.length){ alert('Aucun budget à exporter'); return; }
+    const data = budgets.map(b=>({
+      categorie: b.categorie,
+      montant: b.montant
+    }));
+    
+    if(format === 'csv'){
+      download('budgets.csv', toCSV(data));
+    }else if(format === 'json'){
+      download('budgets.json', JSON.stringify(data, null, 2));
+    }else if(format === 'xlsx'){
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Budgets');
+      XLSX.writeFile(wb, 'budgets.xlsx');
+    }
+  }
+
+  // ====== GRAPHIQUES ======
+  function renderCharts(){
+    const ctx1 = $('pie-categories');
+    const ctx2 = $('line-mensuel');
+    
+    if(charts.pie){ charts.pie.destroy(); charts.pie = null; }
+    if(charts.line){ charts.line.destroy(); charts.line = null; }
+
+    const catData = monthSpendByCat();
+    const labels = Object.keys(catData);
+    const values = Object.values(catData);
+    
+    if(labels.length > 0){
+      charts.pie = new Chart(ctx1, {
+        type: 'pie',
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            backgroundColor: ['#f44336','#e91e63','#9c27b0','#673ab7','#3f51b5','#2196f3','#03a9f4','#00bcd4','#009688','#4caf50']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: 'Dépenses par catégorie' }
+          }
+        }
+      });
+    }
+
+    const series = monthSeries();
+    charts.line = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: series.map(s=>s.label),
+        datasets: [
+          { label: 'Revenus', data: series.map(s=>s.revenus), borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.1)' },
+          { label: 'Dépenses', data: series.map(s=>s.depenses), borderColor: '#f44336', backgroundColor: 'rgba(244,67,54,0.1)' },
+          { label: 'Solde', data: series.map(s=>s.solde), borderColor: '#2196f3', backgroundColor: 'rgba(33,150,243,0.1)' }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: 'Évolution sur 6 mois' }
+        }
+      }
+    });
+  }
+
+  // ====== TABS ======
+  function activateTab(name){
+    document.querySelectorAll('.tab').forEach(t=> t.hidden = true);
+    document.querySelectorAll('.tab-btn').forEach(b=> b.setAttribute('aria-selected', 'false'));
+    
+    const tab = $(name);
+    const btn = document.querySelector(`[data-tab="${name}"]`);
+    if(tab) tab.hidden = false;
+    if(btn) btn.setAttribute('aria-selected', 'true');
+    
+    if(name === 'charts') renderCharts();
+    if(name === 'history'){
+      state.historyMode === 'table' ? renderHistoryTable() : renderHistoryList();
+    }
+  }
+
+  // ====== REFRESH ALL ======
+  function refreshAll(){
+    // Recharger depuis localStorage
+    transactions = readJSON(LS_TX, []);
+    budgets = readJSON(LS_BG, []);
+    
+    console.log('🔄 REFRESH ALL - transactions:', transactions.length, 'budgets:', budgets.length);
+    
+    updatePeriodControls();
+    refreshKPIs();
+    renderAlerts();
+    refreshAnalytics();
+    renderRecent();
+    renderBudgets();
+    
+    const selects = document.querySelectorAll('#categorie');
+    selects.forEach(s=> s.innerHTML = optionsBudget());
+    
+    // IMPORTANT: Mettre à jour TOUS les selects de budget dans TOUTES les listes
+    updateAllBudgetSelectsInPage();
+    
+    if($('history-mode').value === 'table') renderHistoryTable();
+    else renderHistoryList();
+    
+    $('history-mode').value = state.historyMode;
+    $('history-scope').value = state.historyScope;
+    $('history-pagesize').value = state.tablePageSize;
+  }
+  
+  function updateAllBudgetSelectsInPage(){
+    // Recharger depuis localStorage pour être CERTAIN
+    const allTx = readJSON(LS_TX, []);
+    
+    document.querySelectorAll('.select-budget').forEach(select => {
+      const txId = parseInt(select.getAttribute('data-tx-id'));
+      const tx = allTx.find(t => t.id === txId);
+      
+      if(tx && tx.type === 'depense') {
+        // Recréer complètement le HTML des options
+        select.innerHTML = optionsBudget(tx.categorie || '');
+        select.value = tx.categorie || '';
+        select.className = 'select-budget ' + (tx.categorie ? 'ok' : 'non');
+      }
+    });
+    
+    console.log('✅ Tous les selects mis à jour');
+  }
+
+  // ====== EVENT LISTENERS ======
+  document.addEventListener('DOMContentLoaded', ()=>{
+    loadAll();
+    
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> activateTab(btn.dataset.tab));
+    });
+    
+    // Period controls
+    $('period-prev').addEventListener('click', ()=>{
+      state.selectedMonth = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth()-1, 1);
+      saveAll(); refreshAll();
+    });
+    $('period-next').addEventListener('click', ()=>{
+      state.selectedMonth = new Date(state.selectedMonth.getFullYear(), state.selectedMonth.getMonth()+1, 1);
+      saveAll(); refreshAll();
+    });
+    $('period-current').addEventListener('click', ()=>{
+      state.selectedMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      saveAll(); refreshAll();
+    });
+    $('period-picker').addEventListener('change', (e)=>{
+      const parsed = parseMonthInput(e.target.value);
+      if(parsed){ state.selectedMonth = parsed; saveAll(); refreshAll(); }
+    });
+    
+    // Add transaction
+    $('btn-add-revenu').addEventListener('click', ()=> addTx('revenu'));
+    $('btn-add-depense').addEventListener('click', ()=> addTx('depense'));
+    
+    // Add budget
+    $('btn-add-budget').addEventListener('click', addBudget);
+    
+    // Search
+    $('search-input').addEventListener('input', search);
+    
+    // History controls
+    $('history-mode').addEventListener('change', (e)=>{
+      state.historyMode = e.target.value;
+      saveAll();
+      state.historyMode === 'table' ? renderHistoryTable() : renderHistoryList();
+    });
+    $('history-scope').addEventListener('change', (e)=>{
+      state.historyScope = e.target.value;
+      saveAll();
+      state.historyMode === 'table' ? renderHistoryTable() : renderHistoryList();
+    });
+    $('history-filter').addEventListener('input', (e)=>{
+      state.tableFilter = e.target.value;
+      if(state.historyMode === 'table') renderHistoryTable();
+    });
+    $('history-pagesize').addEventListener('change', (e)=>{
+      state.tablePageSize = parseInt(e.target.value, 10);
+      state.tablePage = 1;
+      saveAll();
+      if(state.historyMode === 'table') renderHistoryTable();
+    });
+    
+    // Table sort
+    document.querySelectorAll('#history-table-wrap thead th[data-key]').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const key = th.dataset.key;
+        if(state.tableSort.key === key){
+          state.tableSort.dir = state.tableSort.dir === 'asc' ? 'desc' : 'asc';
+        }else{
+          state.tableSort.key = key;
+          state.tableSort.dir = 'asc';
+        }
+        renderHistoryTable();
+      });
+    });
+    
+    // Import
+    const fileInput = $('csvFile');
+    const dropZone = $('drop');
+    
+    dropZone.addEventListener('click', ()=> fileInput.click());
+    
+    fileInput.addEventListener('change', (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        csvRaw = ev.target.result;
+        $('btn-import').disabled = false;
+      };
+      reader.readAsText(file);
+    });
+    
+    $('btn-import').addEventListener('click', importCSV);
+    $('btn-clear-file').addEventListener('click', ()=>{
+      csvRaw = null;
+      fileInput.value = '';
+      $('btn-import').disabled = true;
+      $('import-results').style.display = 'none';
+    });
+    
+    // Export
+    $('export-tx-csv').addEventListener('click', ()=> exportTransactions('csv'));
+    $('export-tx-json').addEventListener('click', ()=> exportTransactions('json'));
+    $('export-tx-xlsx').addEventListener('click', ()=> exportTransactions('xlsx'));
+    $('export-bud-csv').addEventListener('click', ()=> exportBudgets('csv'));
+    $('export-bud-json').addEventListener('click', ()=> exportBudgets('json'));
+    $('export-bud-xlsx').addEventListener('click', ()=> exportBudgets('xlsx'));
+    $('analysis-budgets-export').addEventListener('click', exportAnalysisBudgets);
+    
+    // Snapshot & Reset
+    $('snapshot-data').addEventListener('click', ()=> snapshotData('manuel'));
+    $('restore-snapshot').addEventListener('click', restoreSnapshot);
+    $('reset-tx').addEventListener('click', resetTransactions);
+    $('reset-bud').addEventListener('click', resetBudgets);
+    $('reset-all').addEventListener('click', resetAll);
+    
+    // Prefs
+    $('save-prefs').addEventListener('click', ()=>{
+      const prefs = readJSON(LS_PREF, {});
+      prefs.locale = $('pref-locale').value;
+      prefs.defaultTab = $('pref-default-tab').value;
+      writeJSON(LS_PREF, prefs);
+      alert('Préférences enregistrées');
+    });
+    $('wipe-data').addEventListener('click', wipeAllData);
+  });
+  
+  // Global functions for inline handlers
+  window.affecter = affecter;
+  window.supprimer = supprimer;
+  window.editTx = editTx;
+  window.delBudget = delBudget;
+  window.gotoPage = gotoPage;
+  window.activateTab = activateTab;
+  </script>
+</body>
+</html>
